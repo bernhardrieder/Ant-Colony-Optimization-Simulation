@@ -6,6 +6,7 @@
 #include "Runtime/Engine/Classes/Components/DecalComponent.h"
 #include "Kismet/HeadMountedDisplayFunctionLibrary.h"
 #include "ACOCharacter.h"
+#include "Hexagon.h"
 
 AACOPlayerController::AACOPlayerController()
 {
@@ -13,15 +14,10 @@ AACOPlayerController::AACOPlayerController()
 	DefaultMouseCursor = EMouseCursor::Crosshairs;
 }
 
+
 void AACOPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
-
-	// keep updating the destination every tick while desired
-	if (bMoveToMouseCursor)
-	{
-		MoveToMouseCursor();
-	}
 }
 
 void AACOPlayerController::SetupInputComponent()
@@ -29,85 +25,45 @@ void AACOPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	InputComponent->BindAction("SetDestination", IE_Pressed, this, &AACOPlayerController::OnSetDestinationPressed);
-	InputComponent->BindAction("SetDestination", IE_Released, this, &AACOPlayerController::OnSetDestinationReleased);
-
-	// support touch devices 
-	InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &AACOPlayerController::MoveToTouchLocation);
-	InputComponent->BindTouch(EInputEvent::IE_Repeat, this, &AACOPlayerController::MoveToTouchLocation);
-
-	InputComponent->BindAction("ResetVR", IE_Pressed, this, &AACOPlayerController::OnResetVR);
+	InputComponent->BindAction("AddOrDeleteFoodSource", IE_Pressed, this, &AACOPlayerController::addOrDeleteFoodSource);
 }
 
-void AACOPlayerController::OnResetVR()
+void AACOPlayerController::addOrDeleteFoodSource()
 {
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
-}
+	auto hex = getMouseTargetedHexagon();
+	if (!hex) return;
 
-void AACOPlayerController::MoveToMouseCursor()
-{
-	if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
-	{
-		if (AACOCharacter* MyPawn = Cast<AACOCharacter>(GetPawn()))
-		{
-			if (MyPawn->GetCursorToWorld())
-			{
-				UNavigationSystem::SimpleMoveToLocation(this, MyPawn->GetCursorToWorld()->GetComponentLocation());
-			}
-		}
-	}
+	if (m_currentFoodSources.Contains(hex))
+		deleteFoodSource(hex);
 	else
-	{
-		// Trace to see what is under the mouse cursor
-		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+		addFoodSource(hex);
+}
 
-		if (Hit.bBlockingHit)
-		{
-			// We hit something, move there
-			SetNewMoveDestination(Hit.ImpactPoint);
-		}
+void AACOPlayerController::addFoodSource(AHexagon* hex)
+{
+	if (hex->IsWalkable())
+	{
+		GLog->Log("added food source!");
+		m_currentFoodSources.Add(hex);
+		hex->ActivateBlinking(true);
 	}
 }
 
-void AACOPlayerController::MoveToTouchLocation(const ETouchIndex::Type FingerIndex, const FVector Location)
+void AACOPlayerController::deleteFoodSource(AHexagon* hex)
 {
-	FVector2D ScreenSpaceLocation(Location);
+	GLog->Log("deleted food source!");
+	hex->ActivateBlinking(false);
+	m_currentFoodSources.Remove(hex);
 
-	// Trace to see what is under the touch location
-	FHitResult HitResult;
-	GetHitResultAtScreenPosition(ScreenSpaceLocation, CurrentClickTraceChannel, true, HitResult);
-	if (HitResult.bBlockingHit)
-	{
-		// We hit something, move there
-		SetNewMoveDestination(HitResult.ImpactPoint);
-	}
 }
 
-void AACOPlayerController::SetNewMoveDestination(const FVector DestLocation)
+AHexagon* AACOPlayerController::getMouseTargetedHexagon() const
 {
-	APawn* const MyPawn = GetPawn();
-	if (MyPawn)
-	{
-		UNavigationSystem* const NavSys = GetWorld()->GetNavigationSystem();
-		float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
+	AHexagon* resultHex = nullptr;
+	FHitResult hitResult;
+	GetHitResultUnderCursor(ECC_Visibility, true, hitResult);
+	if (hitResult.bBlockingHit)
+		resultHex = Cast<AHexagon>(hitResult.Actor.Get());
 
-		// We need to issue move command only if far enough in order for walk animation to play correctly
-		if (NavSys && (Distance > 120.0f))
-		{
-			NavSys->SimpleMoveToLocation(this, DestLocation);
-		}
-	}
-}
-
-void AACOPlayerController::OnSetDestinationPressed()
-{
-	// set flag to keep updating destination until released
-	bMoveToMouseCursor = true;
-}
-
-void AACOPlayerController::OnSetDestinationReleased()
-{
-	// clear flag to indicate we should stop updating the destination
-	bMoveToMouseCursor = false;
+	return resultHex;
 }
