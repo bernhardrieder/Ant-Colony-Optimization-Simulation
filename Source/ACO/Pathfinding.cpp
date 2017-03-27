@@ -6,7 +6,7 @@
 #include <functional>
 #include <string>
 
-void Pathfinding::A_StarSearch(AHexagon* start, AHexagon* goal, std::unordered_map<AHexagon*, AHexagon*>& came_from, bool considerThreat)
+void Pathfinding::AStarSearch(AHexagon* start, AHexagon* goal, std::unordered_map<AHexagon*, AHexagon*>& came_from)
 {
 	std::unordered_map<AHexagon*, float> cost_so_far;
 	std::priority_queue<std::pair<float, AHexagon*>, std::vector<std::pair<float, AHexagon*>>, std::greater<std::pair<float, AHexagon*>>> open;
@@ -25,11 +25,11 @@ void Pathfinding::A_StarSearch(AHexagon* start, AHexagon* goal, std::unordered_m
 
 		for (auto next : currentItemWithBestCost->Neighbours)
 		{
-			float new_cost = cost_so_far[currentItemWithBestCost] + next->GetCost(considerThreat);
+			float new_cost = cost_so_far[currentItemWithBestCost] + next->GetAStarCost();
 			if (!cost_so_far.count(next) || new_cost < cost_so_far[next])
 			{
 				cost_so_far[next] = new_cost;
-				double overallCost = new_cost + A_StarSearchHeuristic(start, goal);
+				double overallCost = new_cost + AStarSearchHeuristic(start, goal);
 				open.emplace(overallCost, next);
 				came_from[next] = currentItemWithBestCost;
 			}
@@ -52,7 +52,7 @@ std::vector<AHexagon*> Pathfinding::ReconstructPath(AHexagon* start, AHexagon* g
 	return path;
 }
 
-float Pathfinding::A_StarSearchHeuristic(AHexagon* start, AHexagon* goal)
+float Pathfinding::AStarSearchHeuristic(AHexagon* start, AHexagon* goal)
 {
 	float manhattan = FVector::Dist(start->GetActorLocation(), goal->GetActorLocation()) / 10;
 	return manhattan;

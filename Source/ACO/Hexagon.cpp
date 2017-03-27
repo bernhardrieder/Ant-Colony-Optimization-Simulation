@@ -5,6 +5,8 @@
 #include <limits>
 #include <string>
 
+float AHexagon::s_maxGlobalPheromoneLevel = 0.0f;
+
 #if WITH_EDITOR
 void AHexagon::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -76,12 +78,9 @@ void AHexagon::Tick(float DeltaTime)
 	//AddPheromones(DeltaTime * 10);
 }
 
-float AHexagon::GetCost(bool withPheromones) const
+float AHexagon::GetAStarCost() const
 {
-	//TODO: change cost with pheromones -> higher pheromones are attractive
-	if (withPheromones)
-		return static_cast<float>(TerrainType) + m_pheromoneLevel; 
-	return static_cast<float>(TerrainType);
+	return s_maxGlobalPheromoneLevel - m_pheromoneLevel;
 }
 
 float AHexagon::GetTerrainCost() const
@@ -135,6 +134,10 @@ void AHexagon::AddPheromones(float cost)
 	float pheromones = m_pheromoneLevel / 255.0f;
 	SetPheromoneColor(FMath::Lerp(FLinearColor(1,1,0), FLinearColor(pheromones, 0, 0), pheromones));
 	m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Min(pheromones*0.5f, 1.0f));
+
+	//track max pheromone level
+	if (m_pheromoneLevel > s_maxGlobalPheromoneLevel)
+		s_maxGlobalPheromoneLevel = m_pheromoneLevel;
 }
 
 void AHexagon::SetPheromoneColor(FLinearColor color)
@@ -187,10 +190,10 @@ void AHexagon::setTerrainSpecifics(ETerrainType type)
 	if (!BaseMaterial) return;
 	m_dynamicMaterial = HexagonMeshComponent->CreateDynamicMaterialInstance(0, BaseMaterial);
 	SetTerrainColor();
-	if (TerrainType == ETerrainType::TT_Mountain)
+	if (TerrainType == ETerrainType::TT_Mountain || TerrainType == ETerrainType::TT_Anthill)
 	{
 		HexagonMeshComponent->SetWorldScale3D(FVector(1.f, 1.f, 2.f));
-		this->SetActorLocation(this->GetActorLocation() + FVector(0.f, 0.f, HexagonMeshComponent->GetStaticMesh()->GetBounds().BoxExtent.Z));
+		this->SetActorLocation(FVector(this->GetActorLocation().X, this->GetActorLocation().Y, HexagonMeshComponent->GetStaticMesh()->GetBounds().BoxExtent.Z));
 	}
 	else
 	{

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <string>
 #include "GameFramework/Actor.h"
 #include "Hexagon.generated.h"
 
@@ -9,6 +10,7 @@ UENUM()
 enum class ETerrainType : uint8
 {
 	TT_Mountain = 0		UMETA(DisplayName = "Mountain"),
+	TT_Anthill = 1		UMETA(DisplayName = "Anthill"),
 	TT_Street = 10		UMETA(DisplayName = "Street"),
 	TT_Grass = 20		UMETA(DisplayName = "Grass"),
 	TT_Sand = 30		UMETA(DisplayName = "Sand"),
@@ -21,6 +23,7 @@ static FColor to_color(ETerrainType type)
 	switch (type)
 	{
 	case ETerrainType::TT_Mountain: return FColor(159, 182, 205); //slategray
+	case ETerrainType::TT_Anthill: return FColor(43, 29, 14); //darkbworn
 	case ETerrainType::TT_Grass: return FColor(34, 139, 34); //forrestgreen
 	case ETerrainType::TT_Sand: return FColor(255, 215, 0); //gold
 	case ETerrainType::TT_Water: return FColor(28, 134, 238); //dodgerblue
@@ -62,7 +65,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	UStaticMeshComponent* GetMeshComponent() const { return HexagonMeshComponent; };
 
-	float GetCost(bool withThreat = true) const;
+	float GetAStarCost() const;
 	float GetTerrainCost() const;
 	float GetPheromoneLevel() const;
 	void SetIsAPath(bool val);
@@ -93,4 +96,6 @@ private:
 	float m_emissionDelta = 0.3f;
 	bool m_hasPheromones = true;
 	bool m_showPheromoneLevel = true;
+
+	static float s_maxGlobalPheromoneLevel;
 };
