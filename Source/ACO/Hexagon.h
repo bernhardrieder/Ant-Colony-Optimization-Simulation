@@ -84,7 +84,7 @@ public:
 	void ToggleShowPheromonoLevel();
 	void IncrementAntCounter();
 	void DecrementAntCounter();
-	void ShowAntCounter(bool decision);
+	void ToggleShowAntCounter();
 	
 	TArray<AHexagon*> Neighbours;
 

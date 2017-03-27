@@ -26,8 +26,12 @@ void AACOPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
+	if (m_hexGrid.Num() == 0)
+		findAllGridHex();
+
 	InputComponent->BindAction("AddOrDeleteFoodSource", IE_Pressed, this, &AACOPlayerController::addOrDeleteFoodSource);
 	InputComponent->BindAction("ToggleShowPheromoneLevels", IE_Pressed, this, &AACOPlayerController::toggleShowPheromoneLevels);
+	InputComponent->BindAction("ToggleShowAntCounters", IE_Pressed, this, &AACOPlayerController::toggleShowAntCounters);
 }
 
 void AACOPlayerController::addOrDeleteFoodSource()
@@ -78,8 +82,12 @@ void AACOPlayerController::findAllGridHex()
 
 void AACOPlayerController::toggleShowPheromoneLevels()
 {
-	if (m_hexGrid.Num() == 0)
-		findAllGridHex();
 	for (auto a : m_hexGrid)
 		a->ToggleShowPheromonoLevel();
+}
+
+void AACOPlayerController::toggleShowAntCounters()
+{
+	for (auto a : m_hexGrid)
+		a->ToggleShowAntCounter();
 }

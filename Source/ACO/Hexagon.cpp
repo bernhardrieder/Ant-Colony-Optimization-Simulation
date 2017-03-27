@@ -193,9 +193,9 @@ void AHexagon::DecrementAntCounter()
 	inOrDecrementAntCounter(false);
 }
 
-void AHexagon::ShowAntCounter(bool decision)
+void AHexagon::ToggleShowAntCounter()
 {
-	Text->SetVisibility(decision);
+	Text->SetVisibility(!Text->IsVisible());
 }
 
 void AHexagon::findNeighbours()

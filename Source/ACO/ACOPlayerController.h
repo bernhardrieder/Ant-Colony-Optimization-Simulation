@@ -27,6 +27,7 @@ protected:
 	//pheormone level control
 	void findAllGridHex();
 	void toggleShowPheromoneLevels();
+	void toggleShowAntCounters();
 	
 	TArray<class AHexagon*> m_currentFoodSources;
 	TArray<class AHexagon*> m_hexGrid;
