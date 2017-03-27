@@ -26,18 +26,24 @@ public:
 
 	void Pause();
 	void Unpause();
+
 protected:
 	/** Thread to run the worker FRunnable on */
 	FRunnableThread* Thread;
 	/** Stop this thread? Uses Thread Safe Counter */
 	FThreadSafeCounter StopTaskCounter;
 
-
 	//Begin ACO
 	void traversePhase();
 	void markPhase();
 	void evaporatePhase();
 
-	static int s_workerCount;
+	/** wait for completion of other threads*/
+	static void waitForAllWorkers();
+
 	FString m_name;
+	static int s_workerCount;
+	/** Events for thread synchronization - wait & notfiy */
+	static TArray<FScopedEvent*> s_waitEvents;
+	static FCriticalSection s_criticalWaitSection;
 };

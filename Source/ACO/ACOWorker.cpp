@@ -5,6 +5,8 @@
 #include "Hexagon.h"
 
 int ACOWorker::s_workerCount = 0;
+TArray<FScopedEvent*> ACOWorker::s_waitEvents;
+FCriticalSection ACOWorker::s_criticalWaitSection;
 
 ACOWorker::ACOWorker(const TArray<AHexagon*>& hexagons, AHexagon* anthillHex, const int& antAmount)
 {
@@ -27,10 +29,14 @@ ACOWorker::~ACOWorker()
 	UE_LOG(LogACO, Log, TEXT("%s destroyed!"), *m_name);
 	if(Thread)
 	{
+		Thread->WaitForCompletion();
 		Thread->Kill();
 		delete Thread;
 		Thread = nullptr;
 	}
+	--s_workerCount;
+	if(s_workerCount == 0)
+		s_waitEvents.Empty();
 }
 
 bool ACOWorker::Init()
@@ -44,7 +50,7 @@ uint32 ACOWorker::Run()
 	//Initial wait before starting
 	FPlatformProcess::Sleep(0.03f);
 
-	while (StopTaskCounter.GetValue() == 0)
+	while (StopTaskCounter.GetValue() != 100)
 	{
 		//prevent thread from using too many resources
 		FPlatformProcess::Sleep(0.01);
@@ -53,6 +59,7 @@ uint32 ACOWorker::Run()
 		traversePhase();
 		markPhase();
 		evaporatePhase();
+		Stop();
 	}
 
 	return 0;
@@ -75,15 +82,34 @@ void ACOWorker::Unpause()
 
 void ACOWorker::traversePhase()
 {
+	GLog->Log("do traverse work " + m_name);
+	waitForAllWorkers();
 }
 
 void ACOWorker::markPhase()
 {
+	GLog->Log("do mark work " + m_name);
+	waitForAllWorkers();
 }
 
 void ACOWorker::evaporatePhase()
 {
+	GLog->Log("do evaporate work " + m_name );
+	waitForAllWorkers();
 	//reset maxPheromoneLevel
 	//update pheromone Visualization
 	//update max Pheromone on Map
+}
+
+void ACOWorker::waitForAllWorkers()
+{
+	FScopedEvent myEvent;
+	FScopeLock lock(&s_criticalWaitSection);
+	s_waitEvents.Push(&myEvent);
+	if (s_waitEvents.Num() == s_workerCount)
+	{
+		for (auto a : s_waitEvents)
+			a->Trigger();
+		s_waitEvents.Empty();
+	}
 }

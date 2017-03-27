@@ -157,6 +157,7 @@ void AACOPlayerController::startACO()
 	}
 
 	m_isAcoRunning = true;
+	m_isAcoPaused = false;
 }
 
 void AACOPlayerController::togglePauseACO()
