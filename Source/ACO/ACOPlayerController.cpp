@@ -7,6 +7,7 @@
 #include "Kismet/HeadMountedDisplayFunctionLibrary.h"
 #include "ACOCharacter.h"
 #include "Hexagon.h"
+#include "EngineUtils.h"
 
 AACOPlayerController::AACOPlayerController()
 {
@@ -26,6 +27,7 @@ void AACOPlayerController::SetupInputComponent()
 	Super::SetupInputComponent();
 
 	InputComponent->BindAction("AddOrDeleteFoodSource", IE_Pressed, this, &AACOPlayerController::addOrDeleteFoodSource);
+	InputComponent->BindAction("ToggleShowPheromoneLevels", IE_Pressed, this, &AACOPlayerController::toggleShowPheromoneLevels);
 }
 
 void AACOPlayerController::addOrDeleteFoodSource()
@@ -66,4 +68,18 @@ AHexagon* AACOPlayerController::getMouseTargetedHexagon() const
 		resultHex = Cast<AHexagon>(hitResult.Actor.Get());
 
 	return resultHex;
+}
+
+void AACOPlayerController::findAllGridHex()
+{
+	for (TActorIterator<AHexagon> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+		m_hexGrid.Add(*ActorItr);
+}
+
+void AACOPlayerController::toggleShowPheromoneLevels()
+{
+	if (m_hexGrid.Num() == 0)
+		findAllGridHex();
+	for (auto a : m_hexGrid)
+		a->ToggleShowPheromonoLevel();
 }

@@ -40,7 +40,7 @@ class ACO_API AHexagon : public AActor
 		UStaticMeshComponent* HexagonMeshComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = Hexagon)
-		UStaticMeshComponent* ThreadMeshComponent;
+		UStaticMeshComponent* PheromoneMeshComponent;
 
 	UPROPERTY(EditDefaultsOnly, Category = Hexagon)
 		UStaticMeshComponent* NeighbourColliderComponent;
@@ -64,31 +64,33 @@ public:
 
 	float GetCost(bool withThreat = true) const;
 	float GetTerrainCost() const;
-	float GetThreatCost() const;
-	void SetPathColor(bool val, FColor color = FColor::Orange);
+	float GetPheromoneLevel() const;
+	void SetIsAPath(bool val);
 	void SetColor(FColor color, float emission = 0);
 	void SetTerrainColor();
-	void SetDestinationColor(FColor color = FColor::Red);
+	//void SetDestinationColor(FColor color = FColor::Red);
 	bool IsWalkable() const;
-	void SetThreat(float cost, FLinearColor color);
-	void AddThreatCost(float cost);
-	void SetThreatColor(FLinearColor color);
+	void AddPheromones(float cost);
+	void SetPheromoneColor(FLinearColor color);
 	void ActivateBlinking(bool val, bool resetEmission = true);
 	void SetEmission(float emission);
-	bool IsThreat() const;
+	bool hasPheromones() const;
+	void ShowPheromoneLevel(bool val);
+	void ToggleShowPheromonoLevel();
 
 	TArray<AHexagon*> Neighbours;
 
 private:
+	void findNeighbours();
 	void setTerrainSpecifics(ETerrainType type);
 	void blink(float deltaTime);
 
 	UMaterialInstanceDynamic* m_dynamicMaterial;
-	UMaterialInstanceDynamic* m_threatDynamicMaterial;
-	float m_threatCost = 0;
+	UMaterialInstanceDynamic* m_pheromoneDynamicMaterial;
+	float m_pheromoneLevel = 0;
 	bool m_isBlinkingActivated;
 	float m_currentDestinationEmission = 0;
 	float m_emissionDelta = 0.3f;
-	bool m_isThreat = false;
-
+	bool m_hasPheromones = true;
+	bool m_showPheromoneLevel = true;
 };

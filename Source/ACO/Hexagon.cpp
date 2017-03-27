@@ -38,38 +38,33 @@ AHexagon::AHexagon() : m_isBlinkingActivated(false)
 	NeighbourColliderComponent->bHiddenInGame = false;
 	NeighbourColliderComponent->SetupAttachment(RootComponent);
 
-	ThreadMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("ThreadMesh");
-	ThreadMeshComponent->bGenerateOverlapEvents = false;
-	ThreadMeshComponent->SetSimulatePhysics(false);
-	ThreadMeshComponent->SetupAttachment(RootComponent);
-	ThreadMeshComponent->SetWorldLocation(FVector(0, 0, 100));
-	ThreadMeshComponent->SetWorldScale3D(FVector(0.5f, 0.5f, 0.01f));
-	ThreadMeshComponent->SetCollisionProfileName("NoCollision");
-	ThreadMeshComponent->SetHiddenInGame(true);
-	ThreadMeshComponent->SetVisibility(false);
+	PheromoneMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("ThreadMesh");
+	PheromoneMeshComponent->bGenerateOverlapEvents = false;
+	PheromoneMeshComponent->SetSimulatePhysics(false);
+	PheromoneMeshComponent->SetupAttachment(RootComponent);
+	PheromoneMeshComponent->SetWorldLocation(FVector(0, 0, 100));
+	PheromoneMeshComponent->SetWorldScale3D(FVector(0.5f, 0.5f, 0.01f));
+	PheromoneMeshComponent->SetCollisionProfileName("NoCollision");
+	PheromoneMeshComponent->SetHiddenInGame(true);
+	PheromoneMeshComponent->SetVisibility(false);
 
 	TerrainType = ETerrainType::TT_Street;
 	setTerrainSpecifics(TerrainType);
-	m_threatCost = 0;
+	m_pheromoneLevel = 0;
 }
 
 void AHexagon::BeginPlay()
 {
 	Super::BeginPlay();
 
-	TArray<AActor*> overlapping;
-	NeighbourColliderComponent->GetOverlappingActors(overlapping, TSubclassOf<AHexagon>());
-	for (auto actor : overlapping)
-	{
-		auto hex = Cast<AHexagon>(actor);
-		if (hex && actor->GetName() != this->GetName() && hex->IsWalkable())
-			Neighbours.Add(Cast<AHexagon>(actor));
-	}
+	findNeighbours();
 
+	//create own materialinstance for hexagons
 	m_dynamicMaterial = HexagonMeshComponent->CreateDynamicMaterialInstance(0, BaseMaterial);
-	m_threatDynamicMaterial = ThreadMeshComponent->CreateDynamicMaterialInstance(0, BaseMaterial);
+	m_pheromoneDynamicMaterial = PheromoneMeshComponent->CreateDynamicMaterialInstance(0, BaseMaterial);
+
 	setTerrainSpecifics(TerrainType);
-	ThreadMeshComponent->SetStaticMesh(HexagonMeshComponent->GetStaticMesh());
+	PheromoneMeshComponent->SetStaticMesh(HexagonMeshComponent->GetStaticMesh());
 }
 
 void AHexagon::Tick(float DeltaTime)
@@ -77,12 +72,15 @@ void AHexagon::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	if (m_isBlinkingActivated)
 		blink(DeltaTime);
+
+	//AddPheromones(DeltaTime * 10);
 }
 
-float AHexagon::GetCost(bool withThreat) const
+float AHexagon::GetCost(bool withPheromones) const
 {
-	if (withThreat)
-		return static_cast<float>(TerrainType) + m_threatCost;
+	//TODO: change cost with pheromones -> higher pheromones are attractive
+	if (withPheromones)
+		return static_cast<float>(TerrainType) + m_pheromoneLevel; 
 	return static_cast<float>(TerrainType);
 }
 
@@ -91,12 +89,12 @@ float AHexagon::GetTerrainCost() const
 	return static_cast<float>(TerrainType);
 }
 
-float AHexagon::GetThreatCost() const
+float AHexagon::GetPheromoneLevel() const
 {
-	return m_threatCost;
+	return m_pheromoneLevel;
 }
 
-void AHexagon::SetPathColor(bool val, FColor color)
+void AHexagon::SetIsAPath(bool val)
 {
 	if (val)
 		SetColor(to_color(TerrainType), 3);
@@ -115,36 +113,33 @@ void AHexagon::SetTerrainColor()
 	SetColor(to_color(TerrainType));
 }
 
-void AHexagon::SetDestinationColor(FColor color)
-{
-	SetColor(color);
-}
+//void AHexagon::SetDestinationColor(FColor color)
+//{
+//	SetColor(color);
+//}
 
 bool AHexagon::IsWalkable() const
 {
 	return static_cast<int>(TerrainType) != 0;
 }
 
-void AHexagon::SetThreat(float cost, FLinearColor color)
+void AHexagon::AddPheromones(float cost)
 {
-	m_isThreat = cost != 0;
-	m_threatCost = cost;
-	ThreadMeshComponent->SetHiddenInGame(!m_isThreat);
-	ThreadMeshComponent->SetVisibility(m_isThreat);
-	SetThreatColor(color);
+	m_pheromoneLevel += cost;
+	if (m_pheromoneLevel < 0.0f)
+		m_pheromoneLevel = 0;
+	m_hasPheromones = m_pheromoneLevel > 0.0f;
+	PheromoneMeshComponent->SetHiddenInGame(!m_showPheromoneLevel);
+	PheromoneMeshComponent->SetVisibility(m_showPheromoneLevel);
+
+	float pheromones = m_pheromoneLevel / 255.0f;
+	SetPheromoneColor(FMath::Lerp(FLinearColor(1,1,0), FLinearColor(pheromones, 0, 0), pheromones));
+	m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Min(pheromones*0.5f, 1.0f));
 }
 
-void AHexagon::AddThreatCost(float cost)
+void AHexagon::SetPheromoneColor(FLinearColor color)
 {
-	m_threatCost += cost;
-	m_isThreat = m_threatCost != 0;
-	ThreadMeshComponent->SetHiddenInGame(!m_isThreat);
-	ThreadMeshComponent->SetVisibility(m_isThreat);
-}
-
-void AHexagon::SetThreatColor(FLinearColor color)
-{
-	m_threatDynamicMaterial->SetVectorParameterValue("BaseColor", FLinearColor(color));
+	m_pheromoneDynamicMaterial->SetVectorParameterValue("BaseColor", FLinearColor(color));
 }
 
 void AHexagon::ActivateBlinking(bool val, bool resetEmission)
@@ -160,9 +155,31 @@ void AHexagon::SetEmission(float emission)
 	m_currentDestinationEmission = emission;
 }
 
-bool AHexagon::IsThreat() const
+bool AHexagon::hasPheromones() const
 {
-	return m_isThreat;
+	return m_hasPheromones;
+}
+
+void AHexagon::ShowPheromoneLevel(bool val)
+{
+	m_showPheromoneLevel = val;
+}
+
+void AHexagon::ToggleShowPheromonoLevel()
+{
+	ShowPheromoneLevel(!m_showPheromoneLevel);
+}
+
+void AHexagon::findNeighbours()
+{
+	TArray<AActor*> overlapping;
+	NeighbourColliderComponent->GetOverlappingActors(overlapping, TSubclassOf<AHexagon>());
+	for (auto actor : overlapping)
+	{
+		auto hex = Cast<AHexagon>(actor);
+		if (hex && actor->GetName() != this->GetName() && hex->IsWalkable())
+			Neighbours.Add(Cast<AHexagon>(actor));
+	}
 }
 
 void AHexagon::setTerrainSpecifics(ETerrainType type)

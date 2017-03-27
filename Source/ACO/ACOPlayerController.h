@@ -18,12 +18,18 @@ protected:
 	virtual void SetupInputComponent() override;
 	// End PlayerController interface
 
+	//food source control
 	void addOrDeleteFoodSource();
 	void addFoodSource(class AHexagon* hex);
 	void deleteFoodSource(class AHexagon* hex);
 	class AHexagon* getMouseTargetedHexagon() const;
+
+	//pheormone level control
+	void findAllGridHex();
+	void toggleShowPheromoneLevels();
 	
 	TArray<class AHexagon*> m_currentFoodSources;
+	TArray<class AHexagon*> m_hexGrid;
 };
 
 
