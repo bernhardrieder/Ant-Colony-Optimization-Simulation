@@ -132,22 +132,35 @@ bool AHexagon::IsWalkable() const
 	return static_cast<int>(TerrainType) != 0;
 }
 
+//per ant in worker
 void AHexagon::AddPheromones(float cost)
 {
+	FScopeLock lock(&criticalPheromoneSection);
 	m_pheromoneLevel += cost;
 	if (m_pheromoneLevel < 0.0f)
 		m_pheromoneLevel = 0;
 	m_hasPheromones = m_pheromoneLevel > 0.0f;
+}
+
+//per hexagon in worker
+void AHexagon::UpdatePheromoneVisualization()
+{
 	PheromoneMeshComponent->SetHiddenInGame(!m_showPheromoneLevel);
 	PheromoneMeshComponent->SetVisibility(m_showPheromoneLevel);
-
 	float pheromones = m_pheromoneLevel / 255.0f;
 	SetPheromoneColor(FMath::Lerp(FLinearColor(1, 1, 0), FLinearColor(pheromones, 0, 0), pheromones));
 	m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Min(pheromones * 0.5f, 1.0f));
+}
 
+//per hexagon in worker
+void AHexagon::UpdateMaxPheromonesOnTheMap()
+{
 	//track max pheromone level
 	if (m_pheromoneLevel > s_maxGlobalPheromoneLevel)
+	{
+		FScopeLock lock(&criticalPheromoneSection);
 		s_maxGlobalPheromoneLevel = m_pheromoneLevel;
+	}
 }
 
 void AHexagon::SetPheromoneColor(FLinearColor color)
@@ -237,6 +250,7 @@ void AHexagon::blink(float deltaTime)
 
 void AHexagon::inOrDecrementAntCounter(bool increment)
 {
+	FScopeLock lock(&criticalAntCounterSection);
 	if (increment)
 		++m_antCounter;
 	else

@@ -76,6 +76,8 @@ public:
 	//void SetDestinationColor(FColor color = FColor::Red);
 	bool IsWalkable() const;
 	void AddPheromones(float cost);
+	void UpdatePheromoneVisualization();
+	void UpdateMaxPheromonesOnTheMap();
 	void SetPheromoneColor(FLinearColor color);
 	void ActivateBlinking(bool val, bool resetEmission = true);
 	void SetEmission(float emission);
@@ -103,6 +105,10 @@ private:
 	bool m_hasPheromones = true;
 	bool m_showPheromoneLevel = true;
 	int m_antCounter = 0;
+
+	//Multithreading
+	FCriticalSection criticalPheromoneSection;
+	FCriticalSection criticalAntCounterSection;
 
 	static float s_maxGlobalPheromoneLevel;
 };

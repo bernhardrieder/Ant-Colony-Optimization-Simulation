@@ -8,6 +8,7 @@
 #include "ACOCharacter.h"
 #include "Hexagon.h"
 #include "EngineUtils.h"
+#include "ACOWorker.h"
 
 AACOPlayerController::AACOPlayerController()
 {
@@ -15,6 +16,11 @@ AACOPlayerController::AACOPlayerController()
 	DefaultMouseCursor = EMouseCursor::Crosshairs;
 }
 
+AACOPlayerController::~AACOPlayerController()
+{
+	for (auto a : m_acoWorkers)
+		delete a;
+}
 
 void AACOPlayerController::PlayerTick(float DeltaTime)
 {
@@ -32,6 +38,8 @@ void AACOPlayerController::SetupInputComponent()
 	InputComponent->BindAction("AddOrDeleteFoodSource", IE_Pressed, this, &AACOPlayerController::addOrDeleteFoodSource);
 	InputComponent->BindAction("ToggleShowPheromoneLevels", IE_Pressed, this, &AACOPlayerController::toggleShowPheromoneLevels);
 	InputComponent->BindAction("ToggleShowAntCounters", IE_Pressed, this, &AACOPlayerController::toggleShowAntCounters);
+	InputComponent->BindAction("StartACO", IE_Pressed, this, &AACOPlayerController::startACO);
+	InputComponent->BindAction("TogglePauseACO", IE_Pressed, this, &AACOPlayerController::togglePauseACO);
 }
 
 void AACOPlayerController::addOrDeleteFoodSource()
@@ -60,7 +68,6 @@ void AACOPlayerController::deleteFoodSource(AHexagon* hex)
 	GLog->Log("deleted food source!");
 	hex->ActivateBlinking(false);
 	m_currentFoodSources.Remove(hex);
-
 }
 
 AHexagon* AACOPlayerController::getMouseTargetedHexagon() const
@@ -90,4 +97,77 @@ void AACOPlayerController::toggleShowAntCounters()
 {
 	for (auto a : m_hexGrid)
 		a->ToggleShowAntCounter();
+}
+
+void AACOPlayerController::startACO()
+{
+	if (m_isAcoRunning)
+	{
+		UE_LOG(LogACO, Error, TEXT("ACO is already running!"));
+		return;
+	}
+
+	int antAmount = 1000;
+	//how much threads?
+	int acoThreads = 10;
+	AHexagon* antHill = nullptr;
+	TArray<AHexagon*> usableHex;
+
+	for (auto a: m_hexGrid)
+	{
+		if (a->IsWalkable())
+		{
+			//locate anthill hexagon
+			if (!antHill && a->GetTerrainCost() == static_cast<int>(ETerrainType::TT_Anthill))
+				antHill = a;
+
+			//locate usable hexs
+			if(antHill != a)
+				usableHex.Push(a);
+		}
+	}
+	if (!antHill || usableHex.Num() == 0)
+	{
+		UE_LOG(LogACO, Error, TEXT("Couldn't find Anthill OR there is no usable/ walkable Hexagon!!!"));
+		return;
+	}
+
+	/** split the resoures and create the thread worker */
+	int hexFracionPerThread = usableHex.Num() / acoThreads;
+	int antAmountPerThread = antAmount / acoThreads;
+
+	for (int i = 1; i <= acoThreads; ++i)
+	{
+		TArray<AHexagon*> threadHex;
+		int threadAntAmount;
+		if (i == acoThreads)
+		{
+			//remaining hex/ants
+			threadAntAmount = antAmount;
+			threadHex = usableHex;
+		}
+		else
+		{
+			antAmount -= antAmountPerThread;
+			threadAntAmount = antAmountPerThread;
+			for (int x = 0; x < hexFracionPerThread; ++x)
+				threadHex.Push(usableHex.Pop());
+		}
+		m_acoWorkers.Push(new ACOWorker(threadHex, antHill, threadAntAmount));
+	}
+
+	m_isAcoRunning = true;
+}
+
+void AACOPlayerController::togglePauseACO()
+{
+	if (m_acoWorkers.Num() == 0) return;
+	for(auto a : m_acoWorkers)
+	{
+		if (m_isAcoPaused)
+			a->Unpause();
+		else
+			a->Pause();
+	}
+	m_isAcoPaused = !m_isAcoPaused;
 }

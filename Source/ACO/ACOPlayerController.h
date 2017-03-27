@@ -1,5 +1,6 @@
 // Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
 #pragma once
+#include "ACOWorker.h"
 #include "GameFramework/PlayerController.h"
 #include "ACOPlayerController.generated.h"
 
@@ -10,6 +11,7 @@ class AACOPlayerController : public APlayerController
 
 public:
 	AACOPlayerController();
+	~AACOPlayerController();
 
 protected:
 
@@ -28,9 +30,14 @@ protected:
 	void findAllGridHex();
 	void toggleShowPheromoneLevels();
 	void toggleShowAntCounters();
+	void startACO();
+	void togglePauseACO();
 	
 	TArray<class AHexagon*> m_currentFoodSources;
 	TArray<class AHexagon*> m_hexGrid;
+	TArray<ACOWorker*> m_acoWorkers;
+	bool m_isAcoRunning = false;
+	bool m_isAcoPaused = false;
 };
 
 
