@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include <vector>
 /**
  * 
  */
 struct Ant
 {
+	explicit Ant(class AHexagon* pos): Position(pos), isCarryingFood(false)	{}
+
 	class AHexagon* Position;
 	TArray<class AHexagon*> visitedPath;
 	bool isCarryingFood;
@@ -31,8 +34,22 @@ protected:
 	/** Thread to run the worker FRunnable on */
 	FRunnableThread* Thread;
 	/** Stop this thread? Uses Thread Safe Counter */
-	FThreadSafeCounter StopTaskCounter;
+	FThreadSafeCounter StopTaskCounter;	
+	
+	// thread safe variables
+	FString m_name;
+	static int s_workerCount;
+	/** Events for thread synchronization - wait & notfiy */
+	static TArray<FScopedEvent*> s_waitEvents;
+	static FCriticalSection s_criticalWaitSection;
 
+	//ACO variables
+	std::vector<Ant*> m_ants;
+	TArray<AHexagon*> m_hexagons;
+	//ACO constants
+	static float s_traversePhaseConstantA;
+	static float s_traversePhaseConstantB;
+	
 	//Begin ACO
 	void traversePhase();
 	void markPhase();
@@ -41,9 +58,7 @@ protected:
 	/** wait for completion of other threads*/
 	static void waitForAllWorkers();
 
-	FString m_name;
-	static int s_workerCount;
-	/** Events for thread synchronization - wait & notfiy */
-	static TArray<FScopedEvent*> s_waitEvents;
-	static FCriticalSection s_criticalWaitSection;
+
+
+
 };

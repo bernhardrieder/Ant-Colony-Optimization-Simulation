@@ -22,7 +22,7 @@ void AHexagon::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 }
 #endif
 
-AHexagon::AHexagon() : m_isBlinkingActivated(false)
+AHexagon::AHexagon() : m_isBlinkingActivated(false), m_hasPheromones(false)
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -59,6 +59,7 @@ AHexagon::AHexagon() : m_isBlinkingActivated(false)
 	Text->SetTextRenderColor(FColor::Black);
 	Text->Text = FText::FromString("");
 	Text->WorldSize = 50.0f;
+	Text->bVisible = false;
 
 	TerrainType = ETerrainType::TT_Street;
 	setTerrainSpecifics(TerrainType);
@@ -209,6 +210,7 @@ void AHexagon::DecrementAntCounter()
 void AHexagon::ToggleShowAntCounter()
 {
 	Text->SetVisibility(!Text->IsVisible());
+	Text->SetText(FText::FromString(FString::FromInt(m_antCounter)));
 }
 
 void AHexagon::findNeighbours()
@@ -255,6 +257,4 @@ void AHexagon::inOrDecrementAntCounter(bool increment)
 		++m_antCounter;
 	else
 		--m_antCounter;
-
-	Text->SetText(FText::FromString(FString::FromInt(m_antCounter)));
 }
