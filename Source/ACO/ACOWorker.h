@@ -24,8 +24,8 @@ public:
 	void Stop() override;
 	//End
 
-	void Pause();
-	void Unpause();
+	void Pause() const;
+	void Unpause() const;
 
 protected:
 	/** Thread to run the worker FRunnable on */

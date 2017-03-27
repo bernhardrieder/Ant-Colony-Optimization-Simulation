@@ -26,17 +26,26 @@ ACOWorker::ACOWorker(const TArray<AHexagon*>& hexagons, AHexagon* anthillHex, co
 
 ACOWorker::~ACOWorker()
 {
-	UE_LOG(LogACO, Log, TEXT("%s destroyed!"), *m_name);
+	//free waiting waitEvents
+	for (auto a : s_waitEvents)
+	{
+		if (a)
+			a->Trigger();
+	}
+	s_waitEvents.Empty();
+
+	//kill thread
 	if(Thread)
 	{
-		Thread->WaitForCompletion();
 		Thread->Kill();
 		delete Thread;
 		Thread = nullptr;
 	}
+
+	//decrement overall counter
 	--s_workerCount;
-	if(s_workerCount == 0)
-		s_waitEvents.Empty();
+
+	UE_LOG(LogACO, Log, TEXT("%s destroyed!"), *m_name);
 }
 
 bool ACOWorker::Init()
@@ -50,7 +59,7 @@ uint32 ACOWorker::Run()
 	//Initial wait before starting
 	FPlatformProcess::Sleep(0.03f);
 
-	while (StopTaskCounter.GetValue() != 100)
+	while (StopTaskCounter.GetValue() == 0)
 	{
 		//prevent thread from using too many resources
 		FPlatformProcess::Sleep(0.01);
@@ -59,7 +68,6 @@ uint32 ACOWorker::Run()
 		traversePhase();
 		markPhase();
 		evaporatePhase();
-		Stop();
 	}
 
 	return 0;
@@ -70,12 +78,12 @@ void ACOWorker::Stop()
 	StopTaskCounter.Increment();
 }
 
-void ACOWorker::Pause()
+void ACOWorker::Pause() const
 {
 	Thread->Suspend(true);
 }
 
-void ACOWorker::Unpause()
+void ACOWorker::Unpause() const
 {
 	Thread->Suspend(false);
 }
