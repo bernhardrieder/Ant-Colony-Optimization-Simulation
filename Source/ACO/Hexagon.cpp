@@ -4,6 +4,7 @@
 #include "Hexagon.h"
 #include <limits>
 #include <string>
+#include "Components/TextRenderComponent.h"
 
 float AHexagon::s_maxGlobalPheromoneLevel = 0.0f;
 
@@ -49,6 +50,15 @@ AHexagon::AHexagon() : m_isBlinkingActivated(false)
 	PheromoneMeshComponent->SetCollisionProfileName("NoCollision");
 	PheromoneMeshComponent->SetHiddenInGame(true);
 	PheromoneMeshComponent->SetVisibility(false);
+
+	Text = CreateDefaultSubobject<UTextRenderComponent>("TextRender");
+	Text->SetWorldRotation(FRotator(90, 0, 180));
+	Text->SetupAttachment(RootComponent);
+	Text->SetVerticalAlignment(EVRTA_TextCenter);
+	Text->SetHorizontalAlignment(EHTA_Center);
+	Text->SetTextRenderColor(FColor::Black);
+	Text->Text = FText::FromString("");
+	Text->WorldSize = 50.0f;
 
 	TerrainType = ETerrainType::TT_Street;
 	setTerrainSpecifics(TerrainType);
@@ -132,8 +142,8 @@ void AHexagon::AddPheromones(float cost)
 	PheromoneMeshComponent->SetVisibility(m_showPheromoneLevel);
 
 	float pheromones = m_pheromoneLevel / 255.0f;
-	SetPheromoneColor(FMath::Lerp(FLinearColor(1,1,0), FLinearColor(pheromones, 0, 0), pheromones));
-	m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Min(pheromones*0.5f, 1.0f));
+	SetPheromoneColor(FMath::Lerp(FLinearColor(1, 1, 0), FLinearColor(pheromones, 0, 0), pheromones));
+	m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Min(pheromones * 0.5f, 1.0f));
 
 	//track max pheromone level
 	if (m_pheromoneLevel > s_maxGlobalPheromoneLevel)
@@ -173,6 +183,21 @@ void AHexagon::ToggleShowPheromonoLevel()
 	ShowPheromoneLevel(!m_showPheromoneLevel);
 }
 
+void AHexagon::IncrementAntCounter()
+{
+	inOrDecrementAntCounter(true);
+}
+
+void AHexagon::DecrementAntCounter()
+{
+	inOrDecrementAntCounter(false);
+}
+
+void AHexagon::ShowAntCounter(bool decision)
+{
+	Text->SetVisibility(decision);
+}
+
 void AHexagon::findNeighbours()
 {
 	TArray<AActor*> overlapping;
@@ -199,6 +224,7 @@ void AHexagon::setTerrainSpecifics(ETerrainType type)
 	{
 		HexagonMeshComponent->SetWorldScale3D(FVector(1.f, 1.f, 1.f));
 		this->SetActorLocation(FVector(this->GetActorLocation().X, this->GetActorLocation().Y, 0.f));
+		Text->SetWorldLocation(FVector(this->GetActorLocation().X, this->GetActorLocation().Y, 10.f + HexagonMeshComponent->GetStaticMesh()->GetBounds().BoxExtent.Z));
 	}
 }
 
@@ -207,4 +233,14 @@ void AHexagon::blink(float deltaTime)
 	SetEmission(m_currentDestinationEmission + m_emissionDelta);
 	if (m_currentDestinationEmission < 0 || m_currentDestinationEmission > 10)
 		m_emissionDelta *= -1;
+}
+
+void AHexagon::inOrDecrementAntCounter(bool increment)
+{
+	if (increment)
+		++m_antCounter;
+	else
+		--m_antCounter;
+
+	Text->SetText(FText::FromString(FString::FromInt(m_antCounter)));
 }
