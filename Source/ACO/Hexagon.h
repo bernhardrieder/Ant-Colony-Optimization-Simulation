@@ -73,7 +73,7 @@ public:
 	void SetIsAPath(bool val);
 	void SetColor(FColor color, float emission = 0);
 	void SetTerrainColor();
-	//void SetDestinationColor(FColor color = FColor::Red);
+	void SetFoodSource(bool yesOrNo);
 	bool IsWalkable() const;
 	void AddPheromones(float cost);
 	void UpdatePheromoneVisualization();

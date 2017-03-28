@@ -130,10 +130,13 @@ void AHexagon::SetTerrainColor()
 	SetColor(to_color(TerrainType));
 }
 
-//void AHexagon::SetDestinationColor(FColor color)
-//{
-//	SetColor(color);
-//}
+void AHexagon::SetFoodSource(bool yesOrNo)
+{
+	if (yesOrNo)
+		SetColor(FColor::Red);
+	else
+		SetTerrainColor();
+}
 
 bool AHexagon::IsWalkable() const
 {

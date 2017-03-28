@@ -45,22 +45,22 @@ void AACOPlayerController::SetupInputComponent()
 void AACOPlayerController::addOrDeleteFoodSource()
 {
 	auto hex = getMouseTargetedHexagon();
-	if (!hex) return;
+	if (!hex || !hex->IsWalkable()) return;
 
-	if (m_currentFoodSources.Contains(hex))
+	bool contains = m_currentFoodSources.Contains(hex);
+	if (contains)
 		deleteFoodSource(hex);
 	else
 		addFoodSource(hex);
+
+	hex->SetFoodSource(!contains);
 }
 
 void AACOPlayerController::addFoodSource(AHexagon* hex)
 {
-	if (hex->IsWalkable())
-	{
-		GLog->Log("added food source!");
-		m_currentFoodSources.Add(hex);
-		hex->ActivateBlinking(true);
-	}
+	GLog->Log("added food source!");
+	m_currentFoodSources.Add(hex);
+	hex->ActivateBlinking(true);
 }
 
 void AACOPlayerController::deleteFoodSource(AHexagon* hex)
