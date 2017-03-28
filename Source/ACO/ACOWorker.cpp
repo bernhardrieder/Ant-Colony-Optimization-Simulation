@@ -15,6 +15,8 @@ ACOWorker::ACOWorker(const TArray<AHexagon*>& hexagons, AHexagon* anthillHex, co
 	for (int i = 0; i < antAmount; ++i)
 		m_ants.push_back(new Ant(anthillHex));
 
+	m_randomStream.Initialize(1610585006);
+
 	m_name = "ACO_Thread_";
 	m_name.AppendInt(++s_workerCount);
 	Thread = FRunnableThread::Create(this, *m_name, 0, TPri_Normal); //windows default = 8mb for thread, could specify more
@@ -142,7 +144,7 @@ void ACOWorker::traversePhase()
 				AHexagon* newPosition = nullptr;
 				while (!newPosition)
 				{
-					float random = FMath::FRandRange(0.0f, 1.0f);
+					float random = m_randomStream.FRandRange(0.0f, 1.0f);
 					for (auto& prob : probabilities)
 					{
 						if (random < prob.Value)

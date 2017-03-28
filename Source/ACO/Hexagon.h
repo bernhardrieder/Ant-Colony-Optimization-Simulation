@@ -105,6 +105,7 @@ private:
 	bool m_hasPheromones = true;
 	bool m_showPheromoneLevel = true;
 	int m_antCounter = 0;
+	float m_elapsedWaitForTextUpdate = 0;
 
 	//Multithreading
 	FCriticalSection criticalPheromoneSection;

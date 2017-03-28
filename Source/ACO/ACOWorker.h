@@ -42,6 +42,7 @@ protected:
 	/** Events for thread synchronization - wait & notfiy */
 	static TArray<FScopedEvent*> s_waitEvents;
 	static FCriticalSection s_criticalWaitSection;
+	FRandomStream m_randomStream;
 
 	//ACO variables
 	std::vector<Ant*> m_ants;

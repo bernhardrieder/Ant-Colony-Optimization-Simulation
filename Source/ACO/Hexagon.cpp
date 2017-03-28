@@ -86,6 +86,13 @@ void AHexagon::Tick(float DeltaTime)
 	if (m_isBlinkingActivated)
 		blink(DeltaTime);
 
+	m_elapsedWaitForTextUpdate += DeltaTime;
+	if(m_elapsedWaitForTextUpdate >= 1.f)
+	{
+		m_elapsedWaitForTextUpdate = 0.f;
+		if(Text->IsVisible())
+			Text->SetText(FText::FromString(FString::FromInt(m_antCounter)));
+	}
 	//AddPheromones(DeltaTime * 10);
 }
 
@@ -210,7 +217,6 @@ void AHexagon::DecrementAntCounter()
 void AHexagon::ToggleShowAntCounter()
 {
 	Text->SetVisibility(!Text->IsVisible());
-	Text->SetText(FText::FromString(FString::FromInt(m_antCounter)));
 }
 
 void AHexagon::findNeighbours()
