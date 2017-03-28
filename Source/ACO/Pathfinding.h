@@ -12,6 +12,5 @@ static class ACO_API Pathfinding
 public:
 	static void AStarSearch(AHexagon* start, AHexagon* goal, std::unordered_map<AHexagon*, AHexagon*>& came_from);
 	static std::vector<AHexagon*> ReconstructPath(AHexagon* start, AHexagon* goal, std::unordered_map<AHexagon*, AHexagon*> came_from, bool shouldBeSortedStartToEnd = false);
-private:
 	static float AStarSearchHeuristic(AHexagon* start, AHexagon* goal);
 };

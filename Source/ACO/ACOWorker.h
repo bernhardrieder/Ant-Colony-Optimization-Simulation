@@ -8,11 +8,13 @@
  */
 struct Ant
 {
-	explicit Ant(class AHexagon* pos): Position(pos), isCarryingFood(false)	{}
+	explicit Ant(class AHexagon* pos): Position(pos), isCarryingFood(false), isSearchingFood(true), pheromonesPerNode(0.0f) {}
 
 	class AHexagon* Position;
 	TArray<class AHexagon*> visitedPath;
 	bool isCarryingFood;
+	bool isSearchingFood;
+	float pheromonesPerNode;
 };
 
 class ACO_API ACOWorker : public FRunnable
@@ -50,6 +52,7 @@ protected:
 	//ACO constants
 	static float s_traversePhaseConstantA;
 	static float s_traversePhaseConstantB;
+	static float s_evaporationCoefficentP;
 	
 	//Begin ACO
 	void traversePhase();

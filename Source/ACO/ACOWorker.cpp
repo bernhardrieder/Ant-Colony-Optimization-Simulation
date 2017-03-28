@@ -3,12 +3,14 @@
 #include "ACO.h"
 #include "ACOWorker.h"
 #include "Hexagon.h"
+#include "Pathfinding.h"
 
 int ACOWorker::s_workerCount = 0;
 TArray<FScopedEvent*> ACOWorker::s_waitEvents;
 FCriticalSection ACOWorker::s_criticalWaitSection;
-float ACOWorker::s_traversePhaseConstantA = 0.2f;
-float ACOWorker::s_traversePhaseConstantB = 1.3f;
+float ACOWorker::s_traversePhaseConstantA = 2.f;
+float ACOWorker::s_traversePhaseConstantB = 10.f;
+float ACOWorker::s_evaporationCoefficentP = 0.01f;
 
 ACOWorker::ACOWorker(const TArray<AHexagon*>& hexagons, AHexagon* anthillHex, const int& antAmount) : m_hexagons(hexagons)
 {
@@ -102,46 +104,61 @@ void ACOWorker::traversePhase()
 	GLog->Log("do traverse work " + m_name);
 	for (auto ant : m_ants)
 	{
-		if (!ant->isCarryingFood)
+		AHexagon* newPosition = nullptr;
+		if (!ant->isCarryingFood && ant->isSearchingFood)
 		{
-			/* calculate possibility p for a turn from Hex I (current position) to Hex J (neighbor)
+			//add current position for finding the path back to anthill
+			ant->visitedPath.Push(ant->Position);
+
+			/* calculate probability p for a turn from Hex I (current position) to Hex J (neighbor)
 			* pij for ant k = (Tij^a * nij^b) / (sum of: Tih^a * nih^b, where h is element of H which are all unvisited neighbours)
 			* Tij ... Pheromones from I to J
 			* nij = 1 / lij
 			* lij ... length from I to J
 			*/
 
-			//divisor
-			float sumOfUnvisited = 0.f;
-			//dividend
+			//probability divisor
+			float sumOfUnvisitedNodes = 0.f;
+			//probability dividend
 			TMap<AHexagon*, float> dividends;
+			int visitableNeighbours = ant->Position->Neighbours.Num();
 
+			//iterate through every neighbour
 			for (auto neighbour : ant->Position->Neighbours)
 			{
+				//neighbour visitable?
 				if (ant->visitedPath.Contains(neighbour) || !neighbour->IsWalkable())
+				{
+					--visitableNeighbours;
 					continue;
+				}
 
-				float pheromoneLevel = neighbour->GetPheromoneLevel() <= 0.0f ? 1.f : neighbour->GetPheromoneLevel(); //Tih or Tij
-				float terrainCost = 1 / neighbour->GetTerrainCost(); //nih or nij
+				//Tih or Tij
+				float pheromoneLevel = neighbour->GetPheromoneLevel() <= 0.0f ? 1.f : neighbour->GetPheromoneLevel(); 
+				//nih or nij
+				float terrainCost = 1 / neighbour->GetTerrainCost(); 
 
-				pheromoneLevel = FMath::Pow(pheromoneLevel, s_traversePhaseConstantA); //Tih^a or Tij^a
-				terrainCost = FMath::Pow(terrainCost, s_traversePhaseConstantB); //nih^b or nij^b
+				//Tih^a or Tij^a
+				pheromoneLevel = FMath::Pow(pheromoneLevel, s_traversePhaseConstantA); 
+				//nih^b or nij^b
+				terrainCost = FMath::Pow(terrainCost, s_traversePhaseConstantB); 
 
 				float multiplication = pheromoneLevel * terrainCost;
 
-				sumOfUnvisited += multiplication;
+				sumOfUnvisitedNodes += multiplication;
+				//add multiplication with costs from I to J
 				dividends.Add(neighbour, multiplication);
 			}
 
-			if (sumOfUnvisited > 0.0f)
+			//if there are neighbours to visit
+			if (visitableNeighbours > 0)
 			{
 				//calculate move probabilities
 				TMap<AHexagon*, float> probabilities;
 				for (auto& dividend : dividends)
-					probabilities.Add(dividend.Key, dividend.Value / sumOfUnvisited);
+					probabilities.Add(dividend.Key, dividend.Value / sumOfUnvisitedNodes);
 
 				//choose new position randomly
-				AHexagon* newPosition = nullptr;
 				while (!newPosition)
 				{
 					float random = m_randomStream.FRandRange(0.0f, 1.0f);
@@ -155,11 +172,37 @@ void ACOWorker::traversePhase()
 						random -= prob.Value;
 					}
 				}
-
-				ant->Position->DecrementAntCounter();
-				ant->Position = newPosition;
-				ant->Position->IncrementAntCounter();
 			}
+			else
+			{
+				//no visitable node
+				//return to anthill
+				ant->isSearchingFood = false;
+			}
+		}
+		if(!ant->isSearchingFood || ant->isCarryingFood)
+		{
+			//go back to anthill
+			newPosition = ant->visitedPath.Pop();
+			if(newPosition == ant->Position)
+				newPosition = ant->visitedPath.Pop();
+		}
+		ant->Position->DecrementAntCounter();
+		ant->Position = newPosition;
+		ant->Position->IncrementAntCounter();
+
+		//is new pos foodsource?
+		if (newPosition->IsFoodSource() && ant->isSearchingFood)
+		{
+			ant->isCarryingFood = true;
+			ant->isSearchingFood = false;
+			ant->pheromonesPerNode = Pathfinding::AStarSearchHeuristic(ant->visitedPath[0], newPosition) / ant->visitedPath.Num()+1;
+		}
+		else if(!ant->isSearchingFood && newPosition->GetTerrainCost() == static_cast<int>(ETerrainType::TT_Anthill))
+		{
+			//is back in anthill
+			ant->isCarryingFood = false;
+			ant->isSearchingFood = true;
 		}
 	}
 
@@ -169,12 +212,23 @@ void ACOWorker::traversePhase()
 void ACOWorker::markPhase()
 {
 	GLog->Log("do mark work " + m_name);
+	for (auto ant : m_ants)
+	{
+		if (ant->isCarryingFood)
+			ant->Position->AddPheromones(ant->pheromonesPerNode);
+	}
 	waitForAllWorkers();
 }
 
 void ACOWorker::evaporatePhase()
 {
 	GLog->Log("do evaporate work " + m_name);
+	for (auto a : m_hexagons)
+	{
+		a->SetPheromoneLevel((1.0f - s_evaporationCoefficentP)*a->GetCapturedPheromoneLevel() + a->GetPreviouslyAddedPheromonesAndResetVar());
+		a->CapturePheromoneLevel();
+		a->UpdatePheromoneVisualization();
+	}
 	waitForAllWorkers();
 	//reset maxPheromoneLevel
 	//update pheromone Visualization

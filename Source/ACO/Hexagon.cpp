@@ -49,7 +49,7 @@ AHexagon::AHexagon() : m_isBlinkingActivated(false), m_hasPheromones(false)
 	PheromoneMeshComponent->SetWorldScale3D(FVector(0.5f, 0.5f, 0.01f));
 	PheromoneMeshComponent->SetCollisionProfileName("NoCollision");
 	PheromoneMeshComponent->SetHiddenInGame(true);
-	PheromoneMeshComponent->SetVisibility(false);
+	PheromoneMeshComponent->SetVisibility(true);
 
 	Text = CreateDefaultSubobject<UTextRenderComponent>("TextRender");
 	Text->SetWorldRotation(FRotator(90, 0, 180));
@@ -87,11 +87,25 @@ void AHexagon::Tick(float DeltaTime)
 		blink(DeltaTime);
 
 	m_elapsedWaitForTextUpdate += DeltaTime;
-	if(m_elapsedWaitForTextUpdate >= 1.f)
+	if (m_elapsedWaitForTextUpdate >= 0.1f)
 	{
 		m_elapsedWaitForTextUpdate = 0.f;
-		if(Text->IsVisible())
+		PheromoneMeshComponent->SetHiddenInGame(!m_hasPheromones || !m_showPheromoneLevel);
+		
+		if (Text->IsVisible())
 			Text->SetText(FText::FromString(FString::FromInt(m_antCounter)));
+
+
+		//if ((!IsWalkable() || !m_showPheromoneLevel || !m_hasPheromones) != PheromoneMeshComponent->bHiddenInGame)
+		//bool hide = (!IsWalkable() | !m_showPheromoneLevel | (m_pheromoneLevel <= 0.0f));
+			//PheromoneMeshComponent->SetHiddenInGame(!m_hasPheromones || !m_showPheromoneLevel);
+			//PheromoneMeshComponent->bHiddenInGame = !m_hasPheromones;
+
+		//if ((IsWalkable() && m_showPheromoneLevel && m_hasPheromones) != PheromoneMeshComponent->IsVisible())
+			//bool visible = (IsWalkable() && m_showPheromoneLevel && m_pheromoneLevel > 0.0f);
+			//PheromoneMeshComponent->SetVisibility(m_hasPheromones);
+			//PheromoneMeshComponent->bVisible = m_hasPheromones;
+
 	}
 	//AddPheromones(DeltaTime * 10);
 }
@@ -109,6 +123,26 @@ float AHexagon::GetTerrainCost() const
 float AHexagon::GetPheromoneLevel() const
 {
 	return m_pheromoneLevel;
+}
+
+void AHexagon::SetPheromoneLevel(float pheromones)
+{
+	FScopeLock lock(&criticalPheromoneSection);
+	m_pheromoneLevel = pheromones;
+	m_hasPheromones = m_pheromoneLevel > std::numeric_limits<float>::epsilon();
+	if (m_pheromoneLevel < std::numeric_limits<float>::epsilon())
+		m_pheromoneLevel = 0.0f;
+}
+
+float AHexagon::GetCapturedPheromoneLevel() const
+{
+	return m_capturedPheromoneLevel;
+}
+
+void AHexagon::CapturePheromoneLevel()
+{
+	FScopeLock lock(&criticalPheromoneSection);
+	m_capturedPheromoneLevel = m_pheromoneLevel;
 }
 
 void AHexagon::SetIsAPath(bool val)
@@ -136,6 +170,8 @@ void AHexagon::SetFoodSource(bool yesOrNo)
 		SetColor(FColor::Red);
 	else
 		SetTerrainColor();
+
+	m_isFoodSource = yesOrNo;
 }
 
 bool AHexagon::IsWalkable() const
@@ -146,21 +182,23 @@ bool AHexagon::IsWalkable() const
 //per ant in worker
 void AHexagon::AddPheromones(float cost)
 {
-	FScopeLock lock(&criticalPheromoneSection);
-	m_pheromoneLevel += cost;
-	if (m_pheromoneLevel < 0.0f)
-		m_pheromoneLevel = 0;
-	m_hasPheromones = m_pheromoneLevel > 0.0f;
+	{
+		FScopeLock lock(&criticalPheromoneSection);
+		m_previouslyAddedPheromones += cost;
+	}
+	SetPheromoneLevel(m_pheromoneLevel + cost);
 }
 
 //per hexagon in worker
 void AHexagon::UpdatePheromoneVisualization()
 {
-	PheromoneMeshComponent->SetHiddenInGame(!m_showPheromoneLevel);
-	PheromoneMeshComponent->SetVisibility(m_showPheromoneLevel);
-	float pheromones = m_pheromoneLevel / 255.0f;
-	SetPheromoneColor(FMath::Lerp(FLinearColor(1, 1, 0), FLinearColor(pheromones, 0, 0), pheromones));
-	m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Min(pheromones * 0.5f, 1.0f));
+	FScopeLock lock(&criticalPheromoneSection);
+	if (m_hasPheromones)
+	{
+		float pheromones = (m_pheromoneLevel ) / 255.f;
+		SetPheromoneColor(FMath::Lerp(FLinearColor(1, 1, 0), FLinearColor(pheromones, 0, 0), pheromones));
+		m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Min(pheromones * 0.5f, 1.0f));
+	}
 }
 
 //per hexagon in worker
@@ -220,6 +258,18 @@ void AHexagon::DecrementAntCounter()
 void AHexagon::ToggleShowAntCounter()
 {
 	Text->SetVisibility(!Text->IsVisible());
+}
+
+bool AHexagon::IsFoodSource() const
+{
+	return m_isFoodSource;
+}
+
+float AHexagon::GetPreviouslyAddedPheromonesAndResetVar()
+{
+	float val = m_previouslyAddedPheromones;
+	m_previouslyAddedPheromones = 0.0f;
+	return val;
 }
 
 void AHexagon::findNeighbours()

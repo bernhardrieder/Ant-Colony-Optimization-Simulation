@@ -70,6 +70,9 @@ public:
 	float GetAStarCost() const;
 	float GetTerrainCost() const;
 	float GetPheromoneLevel() const;
+	void SetPheromoneLevel(float pheromones);
+	float GetCapturedPheromoneLevel() const;
+	void CapturePheromoneLevel();
 	void SetIsAPath(bool val);
 	void SetColor(FColor color, float emission = 0);
 	void SetTerrainColor();
@@ -87,7 +90,9 @@ public:
 	void IncrementAntCounter();
 	void DecrementAntCounter();
 	void ToggleShowAntCounter();
-	
+	bool IsFoodSource() const;
+	float GetPreviouslyAddedPheromonesAndResetVar();
+
 	TArray<AHexagon*> Neighbours;
 
 private:
@@ -103,9 +108,12 @@ private:
 	float m_currentDestinationEmission = 0;
 	float m_emissionDelta = 0.3f;
 	bool m_hasPheromones = true;
-	bool m_showPheromoneLevel = true;
+	bool m_showPheromoneLevel = false;
 	int m_antCounter = 0;
 	float m_elapsedWaitForTextUpdate = 0;
+	bool m_isFoodSource = false;
+	float m_previouslyAddedPheromones = 0.f;
+	float m_capturedPheromoneLevel = 0.f;
 
 	//Multithreading
 	FCriticalSection criticalPheromoneSection;
