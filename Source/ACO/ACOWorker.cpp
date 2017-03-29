@@ -4,6 +4,7 @@
 #include "ACOWorker.h"
 #include "Hexagon.h"
 #include "Pathfinding.h"
+#include "ACOPlayerController.h"
 
 int ACOWorker::s_workerCount = 0;
 TArray<FScopedEvent*> ACOWorker::s_waitEvents;
@@ -12,12 +13,18 @@ float ACOWorker::s_traversePhaseConstantA = 5.f;
 float ACOWorker::s_traversePhaseConstantB = 9.f;
 float ACOWorker::s_evaporationCoefficentP = 0.05f;
 int ACOWorker::s_iterationCounter = 0;
+bool ACOWorker::s_updateByOneWorker = true;
+FCriticalSection ACOWorker::criticalStatic;
+AHexagon* ACOWorker::s_anthill = nullptr;
+std::vector<class AHexagon*> ACOWorker::s_pathHexagons;
+bool ACOWorker::s_renderBestPath = false;
 
 ACOWorker::ACOWorker(const TArray<AHexagon*>& hexagons, AHexagon* anthillHex, const int& antAmount) : m_hexagons(hexagons)
 {
 	for (int i = 0; i < antAmount; ++i)
 		m_ants.push_back(new Ant(anthillHex));
 
+	s_anthill = anthillHex;
 	m_randomStream.Initialize(1610585006 * FDateTime::Now().GetMillisecond());
 
 	m_name = "ACO_Thread_";
@@ -75,15 +82,15 @@ uint32 ACOWorker::Run()
 	{
 		//prevent thread from using too many resources
 		FPlatformProcess::Sleep(0.01);
-		++s_iterationCounter;
+		s_updateByOneWorker = true;
 
 		//do ACO work
 		traversePhase();
 		markPhase();
 		evaporatePhase();
 
-
-		GLog->Log("Iteration: " + FString::FromInt(s_iterationCounter/s_workerCount));
+		//other
+		updateThingsByOneWorker();
 	}
 
 	return 0;
@@ -104,9 +111,13 @@ void ACOWorker::Unpause() const
 	Thread->Suspend(false);
 }
 
+void ACOWorker::ToggleShowBestPath()
+{
+	s_renderBestPath = !s_renderBestPath;
+}
+
 void ACOWorker::traversePhase()
 {
-	//GLog->Log("do traverse work " + m_name);
 	for (auto ant : m_ants)
 	{
 		AHexagon* newPosition = nullptr;
@@ -139,14 +150,14 @@ void ACOWorker::traversePhase()
 				}
 
 				//Tih or Tij
-				float pheromoneLevel = neighbour->GetPheromoneLevel() <= 0.0f ? 1.f : neighbour->GetPheromoneLevel(); 
+				float pheromoneLevel = neighbour->GetPheromoneLevel() <= 0.0f ? 1.f : neighbour->GetPheromoneLevel();
 				//nih or nij
-				float terrainCost = 1 / neighbour->GetTerrainCost(); 
+				float terrainCost = 1 / neighbour->GetTerrainCost();
 
 				//Tih^a or Tij^a
-				pheromoneLevel = FMath::Pow(pheromoneLevel, s_traversePhaseConstantA); 
+				pheromoneLevel = FMath::Pow(pheromoneLevel, s_traversePhaseConstantA);
 				//nih^b or nij^b
-				terrainCost = FMath::Pow(terrainCost, s_traversePhaseConstantB); 
+				terrainCost = FMath::Pow(terrainCost, s_traversePhaseConstantB);
 
 				float multiplication = pheromoneLevel * terrainCost;
 
@@ -185,11 +196,11 @@ void ACOWorker::traversePhase()
 				ant->isSearchingFood = false;
 			}
 		}
-		if(!ant->isSearchingFood || ant->isCarryingFood)
+		if (!ant->isSearchingFood || ant->isCarryingFood)
 		{
 			//go back to anthill
 			newPosition = ant->visitedPath.Pop();
-			if(newPosition == ant->Position)
+			if (newPosition == ant->Position)
 				newPosition = ant->visitedPath.Pop();
 		}
 		ant->Position->DecrementAntCounter();
@@ -201,9 +212,9 @@ void ACOWorker::traversePhase()
 		{
 			ant->isCarryingFood = true;
 			ant->isSearchingFood = false;
-			ant->pheromonesPerNode = Pathfinding::AStarSearchHeuristic(ant->visitedPath[0], newPosition) / ant->visitedPath.Num()+1;
+			ant->pheromonesPerNode = Pathfinding::AStarSearchHeuristic(ant->visitedPath[0], newPosition) / ant->visitedPath.Num() + 1;
 		}
-		else if(!ant->isSearchingFood && newPosition->GetTerrainCost() == static_cast<int>(ETerrainType::TT_Anthill))
+		else if (!ant->isSearchingFood && newPosition->GetTerrainCost() == static_cast<int>(ETerrainType::TT_Anthill))
 		{
 			//is back in anthill
 			ant->isCarryingFood = false;
@@ -216,7 +227,6 @@ void ACOWorker::traversePhase()
 
 void ACOWorker::markPhase()
 {
-	//GLog->Log("do mark work " + m_name);
 	for (auto ant : m_ants)
 	{
 		if (ant->isCarryingFood)
@@ -227,19 +237,14 @@ void ACOWorker::markPhase()
 
 void ACOWorker::evaporatePhase()
 {
-	//GLog->Log("do evaporate work " + m_name);
 	for (auto a : m_hexagons)
 	{
-		a->SetPheromoneLevel((1.0f - s_evaporationCoefficentP)*a->GetCapturedPheromoneLevel() + a->GetPreviouslyAddedPheromonesAndResetVar());
+		a->SetPheromoneLevel((1.0f - s_evaporationCoefficentP) * a->GetCapturedPheromoneLevel() + a->GetPreviouslyAddedPheromonesAndResetVar());
 		a->CapturePheromoneLevel();
 		a->UpdateMaxPheromonesOnTheMap();
 		a->UpdatePheromoneVisualization();
 	}
 	waitForAllWorkers();
-	//reset maxPheromoneLevel
-	//update pheromone Visualization
-	//update max Pheromone on Map
-	AHexagon::ResetMaxPheromonesOnTheMap();
 }
 
 void ACOWorker::waitForAllWorkers()
@@ -253,4 +258,42 @@ void ACOWorker::waitForAllWorkers()
 			a->Trigger();
 		s_waitEvents.Empty();
 	}
+}
+
+void ACOWorker::updateThingsByOneWorker()
+{
+	{
+		FScopeLock lock(&criticalStatic);
+		if (s_updateByOneWorker)
+		{
+			//reset current best path hexs
+			for (auto hex : s_pathHexagons)
+				hex->SetIsAPath(false);
+			s_pathHexagons.clear();
+
+			if (s_renderBestPath)
+			{
+				// do pathfinding for each foodsource
+				auto foodSources = AACOPlayerController::GetFoodSources();
+				for (const auto& foodSource : foodSources)
+				{
+					std::unordered_map<AHexagon*, AHexagon*> came_from;
+					Pathfinding::AStarSearch(s_anthill, foodSource, came_from);
+					for (auto pathHex : Pathfinding::ReconstructPath(s_anthill, foodSource, came_from))
+					{
+						if (pathHex != s_anthill && pathHex != foodSource)
+						{
+							s_pathHexagons.push_back(pathHex);
+							pathHex->SetIsAPath(true);
+						}
+					}
+				}
+			}
+
+			GLog->Log("Iteration: " + FString::FromInt(++s_iterationCounter));
+			AHexagon::ResetMaxPheromonesOnTheMap();
+			s_updateByOneWorker = false;
+		}
+	}
+	waitForAllWorkers();
 }

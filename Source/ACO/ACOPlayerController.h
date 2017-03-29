@@ -12,6 +12,7 @@ class AACOPlayerController : public APlayerController
 public:
 	AACOPlayerController();
 	~AACOPlayerController();
+	static TArray<class AHexagon*>& GetFoodSources();
 
 protected:
 
@@ -32,8 +33,9 @@ protected:
 	void toggleShowAntCounters();
 	void startACO();
 	void togglePauseACO();
+	void toggleShowBestPath();
 	
-	TArray<class AHexagon*> m_currentFoodSources;
+	static TArray<class AHexagon*> s_currentFoodSources;
 	TArray<class AHexagon*> m_hexGrid;
 	TArray<ACOWorker*> m_acoWorkers;
 	bool m_isAcoRunning = false;

@@ -32,6 +32,7 @@ public:
 	void Pause() const;
 	void Unpause() const;
 
+	static void ToggleShowBestPath();
 protected:
 	/** Thread to run the worker FRunnable on */
 	FRunnableThread* Thread;
@@ -61,9 +62,14 @@ protected:
 
 	/** wait for completion of other threads*/
 	static void waitForAllWorkers();
-
+	void updateThingsByOneWorker();
 
 
 	static int s_iterationCounter;
+	static bool s_updateByOneWorker;
+	static FCriticalSection criticalStatic;
+	static class AHexagon* s_anthill;
+	static std::vector<class AHexagon*> s_pathHexagons;
+	static bool s_renderBestPath;
 
 };

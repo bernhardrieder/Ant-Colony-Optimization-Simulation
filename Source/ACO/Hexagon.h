@@ -119,7 +119,6 @@ private:
 	//Multithreading
 	FCriticalSection criticalPheromoneSection;
 	FCriticalSection criticalAntCounterSection;
-	static FCriticalSection criticalStatic;
 
 	static float s_maxGlobalPheromoneLevel;
 };

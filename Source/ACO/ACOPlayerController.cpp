@@ -10,6 +10,8 @@
 #include "EngineUtils.h"
 #include "ACOWorker.h"
 
+TArray<class AHexagon*> AACOPlayerController::s_currentFoodSources;
+
 AACOPlayerController::AACOPlayerController()
 {
 	bShowMouseCursor = true;
@@ -20,6 +22,11 @@ AACOPlayerController::~AACOPlayerController()
 {
 	for (auto a : m_acoWorkers)
 		delete a;
+}
+
+TArray<AHexagon*>& AACOPlayerController::GetFoodSources()
+{
+	return s_currentFoodSources;
 }
 
 void AACOPlayerController::PlayerTick(float DeltaTime)
@@ -40,6 +47,7 @@ void AACOPlayerController::SetupInputComponent()
 	//InputComponent->BindAction("ToggleShowAntCounters", IE_Pressed, this, &AACOPlayerController::toggleShowAntCounters);
 	InputComponent->BindAction("StartACO", IE_Pressed, this, &AACOPlayerController::startACO);
 	InputComponent->BindAction("TogglePauseACO", IE_Pressed, this, &AACOPlayerController::togglePauseACO);
+	InputComponent->BindAction("ToggleShowBestPath", IE_Pressed, this, &AACOPlayerController::toggleShowBestPath);
 }
 
 void AACOPlayerController::addOrDeleteFoodSource()
@@ -47,7 +55,7 @@ void AACOPlayerController::addOrDeleteFoodSource()
 	auto hex = getMouseTargetedHexagon();
 	if (!hex || !hex->IsWalkable()) return;
 
-	bool contains = m_currentFoodSources.Contains(hex);
+	bool contains = s_currentFoodSources.Contains(hex);
 	if (contains)
 		deleteFoodSource(hex);
 	else
@@ -59,7 +67,7 @@ void AACOPlayerController::addOrDeleteFoodSource()
 void AACOPlayerController::addFoodSource(AHexagon* hex)
 {
 	GLog->Log("added food source!");
-	m_currentFoodSources.Add(hex);
+	s_currentFoodSources.Add(hex);
 	hex->ActivateBlinking(true);
 }
 
@@ -67,7 +75,7 @@ void AACOPlayerController::deleteFoodSource(AHexagon* hex)
 {
 	GLog->Log("deleted food source!");
 	hex->ActivateBlinking(false);
-	m_currentFoodSources.Remove(hex);
+	s_currentFoodSources.Remove(hex);
 }
 
 AHexagon* AACOPlayerController::getMouseTargetedHexagon() const
@@ -107,9 +115,9 @@ void AACOPlayerController::startACO()
 		return;
 	}
 
-	int antAmount = 1000;
+	int antAmount = 10000;
 	//how much threads?
-	int acoThreads = 10;
+	int acoThreads = 100;
 	AHexagon* antHill = nullptr;
 	TArray<AHexagon*> usableHex;
 
@@ -171,4 +179,9 @@ void AACOPlayerController::togglePauseACO()
 			a->Pause();
 	}
 	m_isAcoPaused = !m_isAcoPaused;
+}
+
+void AACOPlayerController::toggleShowBestPath()
+{
+	ACOWorker::ToggleShowBestPath();
 }

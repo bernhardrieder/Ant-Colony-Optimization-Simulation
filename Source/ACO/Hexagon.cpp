@@ -7,7 +7,6 @@
 #include "Components/TextRenderComponent.h"
 
 float AHexagon::s_maxGlobalPheromoneLevel = 0.0f;
-FCriticalSection AHexagon::criticalStatic;
 
 #if WITH_EDITOR
 void AHexagon::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -138,7 +137,7 @@ void AHexagon::CapturePheromoneLevel()
 void AHexagon::SetIsAPath(bool val)
 {
 	if (val)
-		SetColor(to_color(TerrainType), 3);
+		SetColor(to_color(TerrainType), 1.f);
 	else
 		SetTerrainColor();
 }
@@ -206,7 +205,6 @@ void AHexagon::UpdateMaxPheromonesOnTheMap()
 
 void AHexagon::ResetMaxPheromonesOnTheMap()
 {
-	FScopeLock lock(&criticalStatic);
 	s_maxGlobalPheromoneLevel = 0;
 }
 
