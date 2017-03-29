@@ -8,16 +8,17 @@
 int ACOWorker::s_workerCount = 0;
 TArray<FScopedEvent*> ACOWorker::s_waitEvents;
 FCriticalSection ACOWorker::s_criticalWaitSection;
-float ACOWorker::s_traversePhaseConstantA = 2.f;
-float ACOWorker::s_traversePhaseConstantB = 10.f;
-float ACOWorker::s_evaporationCoefficentP = 0.01f;
+float ACOWorker::s_traversePhaseConstantA = 5.f;
+float ACOWorker::s_traversePhaseConstantB = 9.f;
+float ACOWorker::s_evaporationCoefficentP = 0.05f;
+int ACOWorker::s_iterationCounter = 0;
 
 ACOWorker::ACOWorker(const TArray<AHexagon*>& hexagons, AHexagon* anthillHex, const int& antAmount) : m_hexagons(hexagons)
 {
 	for (int i = 0; i < antAmount; ++i)
 		m_ants.push_back(new Ant(anthillHex));
 
-	m_randomStream.Initialize(1610585006);
+	m_randomStream.Initialize(1610585006 * FDateTime::Now().GetMillisecond());
 
 	m_name = "ACO_Thread_";
 	m_name.AppendInt(++s_workerCount);
@@ -74,11 +75,15 @@ uint32 ACOWorker::Run()
 	{
 		//prevent thread from using too many resources
 		FPlatformProcess::Sleep(0.01);
+		++s_iterationCounter;
 
 		//do ACO work
 		traversePhase();
 		markPhase();
 		evaporatePhase();
+
+
+		GLog->Log("Iteration: " + FString::FromInt(s_iterationCounter/s_workerCount));
 	}
 
 	return 0;
@@ -101,7 +106,7 @@ void ACOWorker::Unpause() const
 
 void ACOWorker::traversePhase()
 {
-	GLog->Log("do traverse work " + m_name);
+	//GLog->Log("do traverse work " + m_name);
 	for (auto ant : m_ants)
 	{
 		AHexagon* newPosition = nullptr;
@@ -211,7 +216,7 @@ void ACOWorker::traversePhase()
 
 void ACOWorker::markPhase()
 {
-	GLog->Log("do mark work " + m_name);
+	//GLog->Log("do mark work " + m_name);
 	for (auto ant : m_ants)
 	{
 		if (ant->isCarryingFood)
@@ -222,17 +227,19 @@ void ACOWorker::markPhase()
 
 void ACOWorker::evaporatePhase()
 {
-	GLog->Log("do evaporate work " + m_name);
+	//GLog->Log("do evaporate work " + m_name);
 	for (auto a : m_hexagons)
 	{
 		a->SetPheromoneLevel((1.0f - s_evaporationCoefficentP)*a->GetCapturedPheromoneLevel() + a->GetPreviouslyAddedPheromonesAndResetVar());
 		a->CapturePheromoneLevel();
+		a->UpdateMaxPheromonesOnTheMap();
 		a->UpdatePheromoneVisualization();
 	}
 	waitForAllWorkers();
 	//reset maxPheromoneLevel
 	//update pheromone Visualization
 	//update max Pheromone on Map
+	AHexagon::ResetMaxPheromonesOnTheMap();
 }
 
 void ACOWorker::waitForAllWorkers()

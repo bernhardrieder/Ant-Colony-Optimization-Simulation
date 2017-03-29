@@ -64,5 +64,6 @@ protected:
 
 
 
+	static int s_iterationCounter;
 
 };

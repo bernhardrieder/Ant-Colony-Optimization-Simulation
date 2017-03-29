@@ -7,6 +7,7 @@
 #include "Components/TextRenderComponent.h"
 
 float AHexagon::s_maxGlobalPheromoneLevel = 0.0f;
+FCriticalSection AHexagon::criticalStatic;
 
 #if WITH_EDITOR
 void AHexagon::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -94,20 +95,7 @@ void AHexagon::Tick(float DeltaTime)
 		
 		if (Text->IsVisible())
 			Text->SetText(FText::FromString(FString::FromInt(m_antCounter)));
-
-
-		//if ((!IsWalkable() || !m_showPheromoneLevel || !m_hasPheromones) != PheromoneMeshComponent->bHiddenInGame)
-		//bool hide = (!IsWalkable() | !m_showPheromoneLevel | (m_pheromoneLevel <= 0.0f));
-			//PheromoneMeshComponent->SetHiddenInGame(!m_hasPheromones || !m_showPheromoneLevel);
-			//PheromoneMeshComponent->bHiddenInGame = !m_hasPheromones;
-
-		//if ((IsWalkable() && m_showPheromoneLevel && m_hasPheromones) != PheromoneMeshComponent->IsVisible())
-			//bool visible = (IsWalkable() && m_showPheromoneLevel && m_pheromoneLevel > 0.0f);
-			//PheromoneMeshComponent->SetVisibility(m_hasPheromones);
-			//PheromoneMeshComponent->bVisible = m_hasPheromones;
-
 	}
-	//AddPheromones(DeltaTime * 10);
 }
 
 float AHexagon::GetAStarCost() const
@@ -131,7 +119,9 @@ void AHexagon::SetPheromoneLevel(float pheromones)
 	m_pheromoneLevel = pheromones;
 	m_hasPheromones = m_pheromoneLevel > std::numeric_limits<float>::epsilon();
 	if (m_pheromoneLevel < std::numeric_limits<float>::epsilon())
+	{
 		m_pheromoneLevel = 0.0f;
+	}
 }
 
 float AHexagon::GetCapturedPheromoneLevel() const
@@ -192,12 +182,14 @@ void AHexagon::AddPheromones(float cost)
 //per hexagon in worker
 void AHexagon::UpdatePheromoneVisualization()
 {
+	static float maxPhero = 0;
 	FScopeLock lock(&criticalPheromoneSection);
 	if (m_hasPheromones)
 	{
-		float pheromones = (m_pheromoneLevel ) / 255.f;
-		SetPheromoneColor(FMath::Lerp(FLinearColor(1, 1, 0), FLinearColor(pheromones, 0, 0), pheromones));
-		m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Min(pheromones * 0.5f, 1.0f));
+		maxPhero = maxPhero < s_maxGlobalPheromoneLevel ? s_maxGlobalPheromoneLevel : maxPhero;
+		float pheromonesPercent =  ((m_pheromoneLevel*100) / (maxPhero*0.5f));
+		SetPheromoneColor(FMath::Lerp(FLinearColor(1, 1, 0), FLinearColor(1, 0, 0), pheromonesPercent));
+		m_pheromoneDynamicMaterial->SetScalarParameterValue("Emission", FMath::Clamp(pheromonesPercent, 0.f, 50.f));
 	}
 }
 
@@ -210,6 +202,12 @@ void AHexagon::UpdateMaxPheromonesOnTheMap()
 		FScopeLock lock(&criticalPheromoneSection);
 		s_maxGlobalPheromoneLevel = m_pheromoneLevel;
 	}
+}
+
+void AHexagon::ResetMaxPheromonesOnTheMap()
+{
+	FScopeLock lock(&criticalStatic);
+	s_maxGlobalPheromoneLevel = 0;
 }
 
 void AHexagon::SetPheromoneColor(FLinearColor color)

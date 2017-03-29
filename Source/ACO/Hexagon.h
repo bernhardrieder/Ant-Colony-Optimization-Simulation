@@ -81,6 +81,7 @@ public:
 	void AddPheromones(float cost);
 	void UpdatePheromoneVisualization();
 	void UpdateMaxPheromonesOnTheMap();
+	static void ResetMaxPheromonesOnTheMap();
 	void SetPheromoneColor(FLinearColor color);
 	void ActivateBlinking(bool val, bool resetEmission = true);
 	void SetEmission(float emission);
@@ -118,6 +119,7 @@ private:
 	//Multithreading
 	FCriticalSection criticalPheromoneSection;
 	FCriticalSection criticalAntCounterSection;
+	static FCriticalSection criticalStatic;
 
 	static float s_maxGlobalPheromoneLevel;
 };

@@ -37,7 +37,7 @@ void AACOPlayerController::SetupInputComponent()
 
 	InputComponent->BindAction("AddOrDeleteFoodSource", IE_Pressed, this, &AACOPlayerController::addOrDeleteFoodSource);
 	InputComponent->BindAction("ToggleShowPheromoneLevels", IE_Pressed, this, &AACOPlayerController::toggleShowPheromoneLevels);
-	InputComponent->BindAction("ToggleShowAntCounters", IE_Pressed, this, &AACOPlayerController::toggleShowAntCounters);
+	//InputComponent->BindAction("ToggleShowAntCounters", IE_Pressed, this, &AACOPlayerController::toggleShowAntCounters);
 	InputComponent->BindAction("StartACO", IE_Pressed, this, &AACOPlayerController::startACO);
 	InputComponent->BindAction("TogglePauseACO", IE_Pressed, this, &AACOPlayerController::togglePauseACO);
 }
