@@ -31,7 +31,6 @@ protected:
 	//pheormone level control
 	void findAllGridHex();
 	void toggleShowPheromoneLevels();
-	void toggleShowAntCounters();
 	void startACO();
 	void togglePauseACO();
 	void toggleShowBestPath();

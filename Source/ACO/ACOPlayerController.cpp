@@ -49,7 +49,6 @@ void AACOPlayerController::SetupInputComponent()
 
 	InputComponent->BindAction("AddOrDeleteFoodSource", IE_Pressed, this, &AACOPlayerController::addOrDeleteFoodSource);
 	InputComponent->BindAction("ToggleShowPheromoneLevels", IE_Pressed, this, &AACOPlayerController::toggleShowPheromoneLevels);
-	//InputComponent->BindAction("ToggleShowAntCounters", IE_Pressed, this, &AACOPlayerController::toggleShowAntCounters);
 	InputComponent->BindAction("StartACO", IE_Pressed, this, &AACOPlayerController::startACO);
 	InputComponent->BindAction("TogglePauseACO", IE_Pressed, this, &AACOPlayerController::togglePauseACO);
 	InputComponent->BindAction("ToggleShowBestPath", IE_Pressed, this, &AACOPlayerController::toggleShowBestPath);
@@ -112,12 +111,6 @@ void AACOPlayerController::toggleShowPheromoneLevels()
 		a->ToggleShowPheromonoLevel();
 }
 
-void AACOPlayerController::toggleShowAntCounters()
-{
-	for (auto a : m_hexGrid)
-		a->ToggleShowAntCounter();
-}
-
 void AACOPlayerController::startACO()
 {
 	if (m_isAcoRunning)
@@ -126,7 +119,7 @@ void AACOPlayerController::startACO()
 		return;
 	}
 
-	int antAmount = 500000;
+	int antAmount = 50000;
 	//how much threads?
 	int acoThreads = 10;
 	AHexagon* antHill = nullptr;
@@ -200,8 +193,7 @@ void AACOPlayerController::toggleShowBestPath()
 void AACOPlayerController::killWorker()
 {
 	for (auto a : m_acoWorkers)
-	{
 		a->Stop();
-	}
-	//FPlatformProcess::Sleep(1.f);
+
+	FPlatformProcess::Sleep(0.2);
 }

@@ -204,9 +204,7 @@ void ACOWorker::traversePhase()
 			if (newPosition == ant->Position)
 				newPosition = ant->visitedPath.Pop();
 		}
-		ant->Position->DecrementAntCounter();
 		ant->Position = newPosition;
-		ant->Position->IncrementAntCounter();
 
 		//is new pos foodsource?
 		if (newPosition->IsFoodSource() && ant->isSearchingFood)

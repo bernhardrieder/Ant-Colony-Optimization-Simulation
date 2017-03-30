@@ -53,9 +53,6 @@ class ACO_API AHexagon : public AActor
 	UPROPERTY(EditAnywhere, Category = Hexagon)
 		UMaterial* BaseMaterial;
 
-	UPROPERTY(EditAnywhere, Category = Hexagon)
-		class UTextRenderComponent* Text;
-
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -88,11 +85,9 @@ public:
 	bool hasPheromones() const;
 	void ShowPheromoneLevel(bool val);
 	void ToggleShowPheromonoLevel();
-	void IncrementAntCounter();
-	void DecrementAntCounter();
-	void ToggleShowAntCounter();
 	bool IsFoodSource() const;
 	float GetPreviouslyAddedPheromonesAndResetVar();
+	ETerrainType GetTerrainType() const;
 
 	TArray<AHexagon*> Neighbours;
 
@@ -100,7 +95,6 @@ private:
 	void findNeighbours();
 	void setTerrainSpecifics(ETerrainType type);
 	void blink(float deltaTime);
-	void inOrDecrementAntCounter(bool increment);
 
 	UMaterialInstanceDynamic* m_dynamicMaterial;
 	UMaterialInstanceDynamic* m_pheromoneDynamicMaterial;
@@ -110,8 +104,7 @@ private:
 	float m_emissionDelta = 0.3f;
 	bool m_hasPheromones = true;
 	bool m_showPheromoneLevel = false;
-	int m_antCounter = 0;
-	float m_elapsedWaitForTextUpdate = 0;
+	float m_elapsedWaitForVisualizationUpdate = 0;
 	bool m_isFoodSource = false;
 	float m_previouslyAddedPheromones = 0.f;
 	float m_capturedPheromoneLevel = 0.f;
