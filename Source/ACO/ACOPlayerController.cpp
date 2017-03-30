@@ -58,7 +58,7 @@ void AACOPlayerController::Destroyed()
 void AACOPlayerController::addOrDeleteFoodSource()
 {
 	auto hex = getMouseTargetedHexagon();
-	if (!hex || !hex->IsWalkable()) return;
+	if (!hex || !hex->IsWalkable() || hex->GetTerrainType() == ETerrainType::TT_Anthill) return;
 
 	bool containsFoodSource = s_currentFoodSources.Contains(hex);
 	if (containsFoodSource)
@@ -114,7 +114,7 @@ void AACOPlayerController::startACO()
 		return;
 	}
 
-	int antAmount = 50000;
+	int antAmount = 5000;
 	//how much threads?
 	int acoThreads = 10;
 	AHexagon* antHill = nullptr;
