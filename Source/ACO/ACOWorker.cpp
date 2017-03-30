@@ -14,7 +14,6 @@ float ACOWorker::s_traversePhaseConstantB = 9.f;
 float ACOWorker::s_evaporationCoefficentP = 0.05f;
 int ACOWorker::s_iterationCounter = 0;
 bool ACOWorker::s_updateByOneWorker = true;
-FCriticalSection ACOWorker::criticalStatic;
 AHexagon* ACOWorker::s_anthill = nullptr;
 std::vector<class AHexagon*> ACOWorker::s_pathHexagons;
 bool ACOWorker::s_renderBestPath = false;
@@ -262,7 +261,7 @@ void ACOWorker::waitForAllWorkers()
 void ACOWorker::updateThingsByOneWorker()
 {
 	{
-		FScopeLock lock(&criticalStatic);
+		FScopeLock lock(&s_criticalWaitSection);
 		if (s_updateByOneWorker)
 		{
 			//reset current best path hexs
