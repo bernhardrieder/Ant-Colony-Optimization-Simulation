@@ -21,6 +21,7 @@ protected:
 	virtual void SetupInputComponent() override;
 	virtual void Destroyed() override;
 	// End PlayerController interface
+	void killACOWorker();
 
 	//food source control
 	void addOrDeleteFoodSource();
@@ -29,15 +30,16 @@ protected:
 	class AHexagon* getMouseTargetedHexagon() const;
 
 	//pheormone level control
-	void findAllGridHex();
+	void findAllHexagonsInWorld();
 	void toggleShowPheromoneLevels();
+
+	//user controls
 	void startACO();
 	void togglePauseACO();
 	void toggleShowBestPath();
-	void killWorker();
 	
 	static TArray<class AHexagon*> s_currentFoodSources;
-	TArray<class AHexagon*> m_hexGrid;
+	TArray<class AHexagon*> m_worldHex;
 	TArray<ACOWorker*> m_acoWorkers;
 	bool m_isAcoRunning = false;
 	bool m_isAcoPaused = false;

@@ -2,9 +2,7 @@
 
 #include "ACO.h"
 #include "ACOPlayerController.h"
-#include "AI/Navigation/NavigationSystem.h"
 #include "Runtime/Engine/Classes/Components/DecalComponent.h"
-#include "Kismet/HeadMountedDisplayFunctionLibrary.h"
 #include "ACOCharacter.h"
 #include "Hexagon.h"
 #include "EngineUtils.h"
@@ -20,7 +18,6 @@ AACOPlayerController::AACOPlayerController()
 
 AACOPlayerController::~AACOPlayerController()
 {
-	//killWorker();
 	for (auto a : m_acoWorkers)
 		delete a;
 }
@@ -40,8 +37,8 @@ void AACOPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	if (m_hexGrid.Num() == 0)
-		findAllGridHex();
+	if (m_worldHex.Num() == 0)
+		findAllHexagonsInWorld();
 
 	InputComponent->BindAction("AddOrDeleteFoodSource", IE_Pressed, this, &AACOPlayerController::addOrDeleteFoodSource);
 	InputComponent->BindAction("ToggleShowPheromoneLevels", IE_Pressed, this, &AACOPlayerController::toggleShowPheromoneLevels);
@@ -55,7 +52,7 @@ void AACOPlayerController::Destroyed()
 	APlayerController::Destroyed();
 	if (m_isAcoPaused)
 		togglePauseACO();
-	killWorker();
+	killACOWorker();
 }
 
 void AACOPlayerController::addOrDeleteFoodSource()
@@ -63,13 +60,13 @@ void AACOPlayerController::addOrDeleteFoodSource()
 	auto hex = getMouseTargetedHexagon();
 	if (!hex || !hex->IsWalkable()) return;
 
-	bool contains = s_currentFoodSources.Contains(hex);
-	if (contains)
+	bool containsFoodSource = s_currentFoodSources.Contains(hex);
+	if (containsFoodSource)
 		deleteFoodSource(hex);
 	else
 		addFoodSource(hex);
 
-	hex->SetFoodSource(!contains);
+	hex->SetFoodSource(!containsFoodSource);
 }
 
 void AACOPlayerController::addFoodSource(AHexagon* hex)
@@ -97,15 +94,15 @@ AHexagon* AACOPlayerController::getMouseTargetedHexagon() const
 	return resultHex;
 }
 
-void AACOPlayerController::findAllGridHex()
+void AACOPlayerController::findAllHexagonsInWorld()
 {
 	for (TActorIterator<AHexagon> ActorItr(GetWorld()); ActorItr; ++ActorItr)
-		m_hexGrid.Add(*ActorItr);
+		m_worldHex.Add(*ActorItr);
 }
 
 void AACOPlayerController::toggleShowPheromoneLevels()
 {
-	for (auto a : m_hexGrid)
+	for (auto a : m_worldHex)
 		a->ToggleShowPheromonoLevel();
 }
 
@@ -123,12 +120,12 @@ void AACOPlayerController::startACO()
 	AHexagon* antHill = nullptr;
 	TArray<AHexagon*> usableHex;
 
-	for (auto a: m_hexGrid)
+	for (auto a : m_worldHex)
 	{
 		if (a->IsWalkable())
 		{
 			//locate anthill hexagon
-			if (!antHill && a->GetTerrainCost() == static_cast<int>(ETerrainType::TT_Anthill))
+			if (!antHill && a->GetTerrainType() == ETerrainType::TT_Anthill)
 				antHill = a;
 
 			//locate usable hexs
@@ -143,9 +140,10 @@ void AACOPlayerController::startACO()
 	}
 
 	/** split the resoures and create the thread worker */
-	int hexFracionPerThread = usableHex.Num() / acoThreads;
+	int hexFractionPerThread = usableHex.Num() / acoThreads;
 	int antAmountPerThread = antAmount / acoThreads;
 
+	
 	for (int i = 1; i <= acoThreads; ++i)
 	{
 		TArray<AHexagon*> threadHex;
@@ -160,7 +158,7 @@ void AACOPlayerController::startACO()
 		{
 			antAmount -= antAmountPerThread;
 			threadAntAmount = antAmountPerThread;
-			for (int x = 0; x < hexFracionPerThread; ++x)
+			for (int x = 0; x < hexFractionPerThread; ++x)
 				threadHex.Push(usableHex.Pop());
 		}
 		m_acoWorkers.Push(new ACOWorker(threadHex, antHill, threadAntAmount));
@@ -188,7 +186,7 @@ void AACOPlayerController::toggleShowBestPath()
 	ACOWorker::ToggleShowBestPath();
 }
 
-void AACOPlayerController::killWorker()
+void AACOPlayerController::killACOWorker()
 {
 	for (auto a : m_acoWorkers)
 		a->Stop();
