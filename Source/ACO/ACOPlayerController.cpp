@@ -22,11 +22,7 @@ AACOPlayerController::~AACOPlayerController()
 {
 	//killWorker();
 	for (auto a : m_acoWorkers)
-	{
-		//a->Stop();
-		//a->Pause();
 		delete a;
-	}
 }
 
 TArray<AHexagon*>& AACOPlayerController::GetFoodSources()
@@ -57,6 +53,8 @@ void AACOPlayerController::SetupInputComponent()
 void AACOPlayerController::Destroyed()
 {
 	APlayerController::Destroyed();
+	if (m_isAcoPaused)
+		togglePauseACO();
 	killWorker();
 }
 
