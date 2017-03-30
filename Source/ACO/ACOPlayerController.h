@@ -19,6 +19,7 @@ protected:
 	// Begin PlayerController interface
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void SetupInputComponent() override;
+	virtual void Destroyed() override;
 	// End PlayerController interface
 
 	//food source control
@@ -34,6 +35,7 @@ protected:
 	void startACO();
 	void togglePauseACO();
 	void toggleShowBestPath();
+	void killWorker();
 	
 	static TArray<class AHexagon*> s_currentFoodSources;
 	TArray<class AHexagon*> m_hexGrid;

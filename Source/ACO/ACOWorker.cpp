@@ -186,6 +186,7 @@ void ACOWorker::traversePhase()
 							break;
 						}
 						random -= prob.Value;
+
 					}
 				}
 			}

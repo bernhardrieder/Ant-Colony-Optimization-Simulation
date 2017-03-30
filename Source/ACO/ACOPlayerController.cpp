@@ -20,8 +20,13 @@ AACOPlayerController::AACOPlayerController()
 
 AACOPlayerController::~AACOPlayerController()
 {
+	//killWorker();
 	for (auto a : m_acoWorkers)
+	{
+		//a->Stop();
+		//a->Pause();
 		delete a;
+	}
 }
 
 TArray<AHexagon*>& AACOPlayerController::GetFoodSources()
@@ -48,6 +53,12 @@ void AACOPlayerController::SetupInputComponent()
 	InputComponent->BindAction("StartACO", IE_Pressed, this, &AACOPlayerController::startACO);
 	InputComponent->BindAction("TogglePauseACO", IE_Pressed, this, &AACOPlayerController::togglePauseACO);
 	InputComponent->BindAction("ToggleShowBestPath", IE_Pressed, this, &AACOPlayerController::toggleShowBestPath);
+}
+
+void AACOPlayerController::Destroyed()
+{
+	APlayerController::Destroyed();
+	killWorker();
 }
 
 void AACOPlayerController::addOrDeleteFoodSource()
@@ -115,9 +126,9 @@ void AACOPlayerController::startACO()
 		return;
 	}
 
-	int antAmount = 10000;
+	int antAmount = 500000;
 	//how much threads?
-	int acoThreads = 100;
+	int acoThreads = 10;
 	AHexagon* antHill = nullptr;
 	TArray<AHexagon*> usableHex;
 
@@ -184,4 +195,13 @@ void AACOPlayerController::togglePauseACO()
 void AACOPlayerController::toggleShowBestPath()
 {
 	ACOWorker::ToggleShowBestPath();
+}
+
+void AACOPlayerController::killWorker()
+{
+	for (auto a : m_acoWorkers)
+	{
+		a->Stop();
+	}
+	//FPlatformProcess::Sleep(1.f);
 }
