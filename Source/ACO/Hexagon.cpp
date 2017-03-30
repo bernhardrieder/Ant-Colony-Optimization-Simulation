@@ -22,7 +22,7 @@ void AHexagon::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 }
 #endif
 
-AHexagon::AHexagon() : m_isBlinkingActivated(false), m_hasPheromones(false)
+AHexagon::AHexagon() : m_isMaterialBlinkingActivated(false), m_hasPheromones(false)
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -60,7 +60,7 @@ void AHexagon::BeginPlay()
 {
 	Super::BeginPlay();
 
-	findNeighbours();
+	findNeighbourHexagons();
 
 	//create own materialinstance for hexagons
 	m_dynamicMaterial = HexagonMeshComponent->CreateDynamicMaterialInstance(0, BaseMaterial);
@@ -73,18 +73,18 @@ void AHexagon::BeginPlay()
 void AHexagon::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (m_isBlinkingActivated)
-		blink(DeltaTime);
+	if (m_isMaterialBlinkingActivated)
+		materialBlinkUpdate(DeltaTime);
 
-	m_elapsedWaitForVisualizationUpdate += DeltaTime;
-	if (m_elapsedWaitForVisualizationUpdate >= 0.1f)
+	m_elapsedWaitTimeForPheromoneVisualization += DeltaTime;
+	if (m_elapsedWaitTimeForPheromoneVisualization >= 0.1f)
 	{
-		m_elapsedWaitForVisualizationUpdate = 0.f;
+		m_elapsedWaitTimeForPheromoneVisualization = 0.f;
 		PheromoneMeshComponent->SetHiddenInGame(!m_hasPheromones || !m_showPheromoneLevel);
 	}
 }
 
-float AHexagon::GetAStarCost() const
+float AHexagon::GetPheromoneAStarCost() const
 {
 	return s_maxGlobalPheromoneLevel - m_pheromoneLevel;
 }
@@ -101,7 +101,7 @@ float AHexagon::GetPheromoneLevel() const
 
 void AHexagon::SetPheromoneLevel(float pheromones)
 {
-	FScopeLock lock(&criticalPheromoneSection);
+	FScopeLock lock(&m_criticalPheromoneSection);
 	m_pheromoneLevel = pheromones;
 	m_hasPheromones = m_pheromoneLevel > std::numeric_limits<float>::epsilon();
 	if (m_pheromoneLevel < std::numeric_limits<float>::epsilon())
@@ -117,7 +117,7 @@ float AHexagon::GetCapturedPheromoneLevel() const
 
 void AHexagon::CapturePheromoneLevel()
 {
-	FScopeLock lock(&criticalPheromoneSection);
+	FScopeLock lock(&m_criticalPheromoneSection);
 	m_capturedPheromoneLevel = m_pheromoneLevel;
 }
 
@@ -159,7 +159,7 @@ bool AHexagon::IsWalkable() const
 void AHexagon::AddPheromones(float cost)
 {
 	{
-		FScopeLock lock(&criticalPheromoneSection);
+		FScopeLock lock(&m_criticalPheromoneSection);
 		m_previouslyAddedPheromones += cost;
 	}
 	SetPheromoneLevel(m_pheromoneLevel + cost);
@@ -169,7 +169,7 @@ void AHexagon::AddPheromones(float cost)
 void AHexagon::UpdatePheromoneVisualization()
 {
 	static float maxPhero = 0;
-	FScopeLock lock(&criticalPheromoneSection);
+	FScopeLock lock(&m_criticalPheromoneSection);
 	if (m_hasPheromones)
 	{
 		maxPhero = maxPhero < s_maxGlobalPheromoneLevel ? s_maxGlobalPheromoneLevel : maxPhero;
@@ -185,7 +185,7 @@ void AHexagon::UpdateMaxPheromonesOnTheMap()
 	//track max pheromone level
 	if (m_pheromoneLevel > s_maxGlobalPheromoneLevel)
 	{
-		FScopeLock lock(&criticalPheromoneSection);
+		FScopeLock lock(&m_criticalPheromoneSection);
 		s_maxGlobalPheromoneLevel = m_pheromoneLevel;
 	}
 }
@@ -202,7 +202,7 @@ void AHexagon::SetPheromoneColor(FLinearColor color)
 
 void AHexagon::ActivateBlinking(bool val, bool resetEmission)
 {
-	m_isBlinkingActivated = val;
+	m_isMaterialBlinkingActivated = val;
 	if (resetEmission)
 		SetEmission(0);
 }
@@ -210,10 +210,10 @@ void AHexagon::ActivateBlinking(bool val, bool resetEmission)
 void AHexagon::SetEmission(float emission)
 {
 	m_dynamicMaterial->SetScalarParameterValue("Emission", emission);
-	m_currentDestinationEmission = emission;
+	m_currentDestinationMaterialEmission = emission;
 }
 
-bool AHexagon::hasPheromones() const
+bool AHexagon::HasPheromones() const
 {
 	return m_hasPheromones;
 }
@@ -245,7 +245,12 @@ ETerrainType AHexagon::GetTerrainType() const
 	return TerrainType;
 }
 
-void AHexagon::findNeighbours()
+TArray<AHexagon*>& AHexagon::GetNeighbourHexagons()
+{
+	return m_neighbourHexagons;
+}
+
+void AHexagon::findNeighbourHexagons()
 {
 	TArray<AActor*> overlapping;
 	NeighbourColliderComponent->GetOverlappingActors(overlapping, TSubclassOf<AHexagon>());
@@ -253,7 +258,7 @@ void AHexagon::findNeighbours()
 	{
 		auto hex = Cast<AHexagon>(actor);
 		if (hex && actor->GetName() != this->GetName() && hex->IsWalkable())
-			Neighbours.Add(Cast<AHexagon>(actor));
+			m_neighbourHexagons.Add(Cast<AHexagon>(actor));
 	}
 }
 
@@ -274,9 +279,9 @@ void AHexagon::setTerrainSpecifics(ETerrainType type)
 	}
 }
 
-void AHexagon::blink(float deltaTime)
+void AHexagon::materialBlinkUpdate(float deltaTime)
 {
-	SetEmission(m_currentDestinationEmission + m_emissionDelta);
-	if (m_currentDestinationEmission < 0 || m_currentDestinationEmission > 10)
-		m_emissionDelta *= -1;
+	SetEmission(m_currentDestinationMaterialEmission + m_materialEmissionDelta);
+	if (m_currentDestinationMaterialEmission < 0 || m_currentDestinationMaterialEmission > 10)
+		m_materialEmissionDelta *= -1;
 }

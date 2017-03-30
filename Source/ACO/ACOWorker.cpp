@@ -137,10 +137,10 @@ void ACOWorker::traversePhase()
 			float sumOfUnvisitedNodes = 0.f;
 			//probability dividend
 			TMap<AHexagon*, float> dividends;
-			int visitableNeighbours = ant->Position->Neighbours.Num();
+			int visitableNeighbours = ant->Position->GetNeighbourHexagons().Num();
 
 			//iterate through every neighbour
-			for (auto neighbour : ant->Position->Neighbours)
+			for (auto neighbour : ant->Position->GetNeighbourHexagons())
 			{
 				//neighbour visitable?
 				if (ant->visitedPath.Contains(neighbour) || !neighbour->IsWalkable())

@@ -64,7 +64,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	UStaticMeshComponent* GetMeshComponent() const { return HexagonMeshComponent; };
 
-	float GetAStarCost() const;
+	float GetPheromoneAStarCost() const;
 	float GetTerrainCost() const;
 	float GetPheromoneLevel() const;
 	void SetPheromoneLevel(float pheromones);
@@ -82,36 +82,40 @@ public:
 	void SetPheromoneColor(FLinearColor color);
 	void ActivateBlinking(bool val, bool resetEmission = true);
 	void SetEmission(float emission);
-	bool hasPheromones() const;
+	bool HasPheromones() const;
 	void ShowPheromoneLevel(bool val);
 	void ToggleShowPheromonoLevel();
 	bool IsFoodSource() const;
 	float GetPreviouslyAddedPheromonesAndResetVar();
 	ETerrainType GetTerrainType() const;
-
-	TArray<AHexagon*> Neighbours;
+	TArray<AHexagon*>& GetNeighbourHexagons();
 
 private:
-	void findNeighbours();
+	void findNeighbourHexagons();
 	void setTerrainSpecifics(ETerrainType type);
-	void blink(float deltaTime);
+	void materialBlinkUpdate(float deltaTime);
 
+	//other
+	TArray<AHexagon*> m_neighbourHexagons;
+	bool m_isFoodSource = false;
+
+	//materials
 	UMaterialInstanceDynamic* m_dynamicMaterial;
+	bool m_isMaterialBlinkingActivated;
+	float m_currentDestinationMaterialEmission = 0;
+	float m_materialEmissionDelta = 0.3f;
+
+	//pheromones
 	UMaterialInstanceDynamic* m_pheromoneDynamicMaterial;
 	float m_pheromoneLevel = 0;
-	bool m_isBlinkingActivated;
-	float m_currentDestinationEmission = 0;
-	float m_emissionDelta = 0.3f;
 	bool m_hasPheromones = true;
 	bool m_showPheromoneLevel = false;
-	float m_elapsedWaitForVisualizationUpdate = 0;
-	bool m_isFoodSource = false;
 	float m_previouslyAddedPheromones = 0.f;
 	float m_capturedPheromoneLevel = 0.f;
+	float m_elapsedWaitTimeForPheromoneVisualization = 0;
+	static float s_maxGlobalPheromoneLevel;
 
 	//Multithreading
-	FCriticalSection criticalPheromoneSection;
-	FCriticalSection criticalAntCounterSection;
+	FCriticalSection m_criticalPheromoneSection;
 
-	static float s_maxGlobalPheromoneLevel;
 };

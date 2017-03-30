@@ -23,9 +23,9 @@ void Pathfinding::AStarSearch(AHexagon* start, AHexagon* goal, std::unordered_ma
 		if (currentItemWithBestCost == goal)
 			break;
 
-		for (auto next : currentItemWithBestCost->Neighbours)
+		for (auto next : currentItemWithBestCost->GetNeighbourHexagons())
 		{
-			float new_cost = cost_so_far[currentItemWithBestCost] + next->GetAStarCost();
+			float new_cost = cost_so_far[currentItemWithBestCost] + next->GetPheromoneAStarCost();
 			if (!cost_so_far.count(next) || new_cost < cost_so_far[next])
 			{
 				cost_so_far[next] = new_cost;
